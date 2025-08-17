@@ -65,7 +65,15 @@
 - [x] AOROM (Mapper 7) implementation
 - [x] Save system implementation
 
-### M5: Frontend and Polish
+### M5: MMC3 + IRQ ✅
+- [x] MMC3 (Mapper 4) implementation
+- [x] Scanline IRQ counter
+- [x] A12 clock detection
+- [x] Advanced bank switching
+- [x] Configurable mirroring
+- [x] Battery backup support
+
+### M6: Frontend and Polish
 - [ ] Native frontend completion
 - [ ] Save state system
 - [ ] Debug interface

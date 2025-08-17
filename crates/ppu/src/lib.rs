@@ -265,6 +265,9 @@ impl Ppu {
             self.render_vblank_scanline()?;
         }
         
+        // Step mapper for IRQ handling
+        self.mapper.step();
+        
         Ok(())
     }
     
@@ -616,10 +619,10 @@ impl Ppu {
     }
     
     /// Read from VRAM
-    fn read_vram(&self, addr: Word) -> RnesResult<Byte> {
+    fn read_vram(&mut self, addr: Word) -> RnesResult<Byte> {
         match addr {
             0x0000..=0x1FFF => {
-                // Pattern tables
+                // Pattern tables - detect A12 for MMC3 IRQ
                 self.mapper.read_chr(addr)
             }
             0x2000..=0x3EFF => {

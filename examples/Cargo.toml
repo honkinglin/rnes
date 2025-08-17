@@ -68,6 +68,14 @@ name = "m4_demo"
 path = "m4_demo.rs"
 
 [[bin]]
+name = "m5_demo"
+path = "m5_demo.rs"
+
+[[bin]]
+name = "m5_rom_test"
+path = "m5_rom_test.rs"
+
+[[bin]]
 name = "save_system_demo"
 path = "save_system_demo.rs"
 

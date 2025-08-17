@@ -263,6 +263,15 @@ impl Bus {
             }
         }
         
+        // Check mapper IRQ
+        if let Some(ref mut ppu) = self.ppu {
+            let mapper = ppu.mapper_mut();
+            if mapper.irq_pending() {
+                cpu.request_irq();
+                mapper.clear_irq();
+            }
+        }
+        
         Ok(cycles)
     }
     
