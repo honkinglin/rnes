@@ -5,9 +5,11 @@
 pub mod cpu_test_runner;
 pub mod ppu_test_runner;
 pub mod apu_test_runner;
+pub mod m4_test_runner;
 
 pub use cpu_test_runner::CpuTestRunner;
 pub use ppu_test_runner::{PpuTestRunner, PpuTestResult};
 pub use apu_test_runner::{ApuTestRunner, ApuTestResult};
+pub use m4_test_runner::{M4TestRunner, M4TestResult};
 
 // Test modules are now separate test targets

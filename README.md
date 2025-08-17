@@ -59,7 +59,7 @@ frontend/
 
 ### M4: Common Mappers ✅
 - [x] MMC1, UxROM, CNROM, AOROM
-- [ ] Save system
+- [x] Save system
 
 ### M5: MMC3 + IRQ
 - [ ] MMC3 implementation
@@ -151,6 +151,9 @@ cargo test -p rnes-test-suite --test m2_integration_tests -- --ignored
 # Run M4 integration tests (requires test ROMs)
 ./scripts/download_m4_test_roms.sh
 cargo test -p rnes-test-suite --test m4_integration_tests -- --ignored
+
+# Run M4 basic tests (no ROMs required)
+cargo test -p rnes-test-suite --test m4_integration_tests
 
 # Run APU integration tests (requires test ROMs)
 ./scripts/download_apu_test_roms.sh

@@ -63,7 +63,7 @@
 - [x] UxROM (Mapper 2) implementation
 - [x] CNROM (Mapper 3) implementation
 - [x] AOROM (Mapper 7) implementation
-- [ ] Save system implementation
+- [x] Save system implementation
 
 ### M5: Frontend and Polish
 - [ ] Native frontend completion

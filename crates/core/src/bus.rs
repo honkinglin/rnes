@@ -311,6 +311,16 @@ impl Bus {
         self.apu.as_mut().expect("APU not initialized")
     }
     
+    /// Get mapper instance
+    pub fn mapper(&self) -> &dyn rnes_mappers::Mapper {
+        self.ppu.as_ref().expect("PPU not initialized").mapper()
+    }
+    
+    /// Get mutable mapper instance
+    pub fn mapper_mut(&mut self) -> &mut dyn rnes_mappers::Mapper {
+        self.ppu.as_mut().expect("PPU not initialized").mapper_mut()
+    }
+    
     /// Get audio samples from APU
     pub fn get_audio_samples(&mut self) -> Vec<rnes_common::AudioSample> {
         self.apu.as_mut()

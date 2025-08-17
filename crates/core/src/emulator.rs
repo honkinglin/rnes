@@ -1,4 +1,4 @@
-use rnes_common::{RnesResult, EmulatorState};
+use rnes_common::{RnesResult, EmulatorState, SaveSystem, SaveState};
 use crate::Bus;
 use rnes_cartridge::Cartridge;
 
@@ -9,6 +9,8 @@ pub struct Emulator {
     pub cpu: rnes_cpu6502::Cpu,
     pub state: EmulatorState,
     pub running: bool,
+    pub save_system: SaveSystem,
+    pub rom_name: Option<String>,
 }
 
 impl Emulator {
@@ -19,12 +21,30 @@ impl Emulator {
             cpu: rnes_cpu6502::Cpu::new(),
             state: EmulatorState::default(),
             running: false,
+            save_system: SaveSystem::new(),
+            rom_name: None,
         }
     }
     
     /// Load ROM
     pub fn load_rom(&mut self, cartridge: Cartridge) -> RnesResult<()> {
+        // Extract ROM name from cartridge
+        let rom_name = cartridge.header.magic.iter().map(|&b| b as char).collect::<String>();
+        self.rom_name = Some(rom_name.clone());
+        
         self.bus.insert_cartridge(cartridge)?;
+        
+        // Load battery backup if available
+        let mapper = self.bus.mapper_mut();
+        if mapper.has_battery() {
+            if let Ok(data) = self.save_system.load_battery_backup(&rom_name) {
+                if !data.is_empty() {
+                    mapper.load_prg_ram(&data)?;
+                    tracing::info!("Loaded battery backup for ROM: {}", rom_name);
+                }
+            }
+        }
+        
         self.reset()?;
         Ok(())
     }
@@ -209,6 +229,128 @@ impl Emulator {
     /// Get mutable APU instance
     pub fn apu_mut(&mut self) -> &mut rnes_apu::Apu {
         self.bus.apu_mut()
+    }
+    
+    /// Save battery backup
+    pub fn save_battery_backup(&self) -> RnesResult<()> {
+        if let Some(ref rom_name) = self.rom_name {
+            let mapper = self.bus.mapper();
+            if mapper.has_battery() {
+                if let Some(ram) = mapper.get_prg_ram() {
+                    self.save_system.save_battery_backup(rom_name, ram)?;
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    /// Save state to slot
+    pub fn save_state(&self, slot: u8) -> RnesResult<()> {
+        if let Some(ref rom_name) = self.rom_name {
+            let mut save_state = SaveState::new(rom_name.clone());
+            
+            // Save CPU state
+            save_state.cpu_state.pc = self.cpu.pc;
+            save_state.cpu_state.sp = self.cpu.sp;
+            save_state.cpu_state.a = self.cpu.a;
+            save_state.cpu_state.x = self.cpu.x;
+            save_state.cpu_state.y = self.cpu.y;
+            save_state.cpu_state.status = self.cpu.status.bits();
+            save_state.cpu_state.cycles = self.state.cpu_cycles as u64;
+            
+            // Save PPU state
+            if let Some(ref ppu) = self.bus.ppu {
+                save_state.ppu_state.scanline = ppu.scanline() as u16;
+                save_state.ppu_state.dot = ppu.dot() as u16;
+                save_state.ppu_state.frame = ppu.frame_count() as u32;
+                save_state.ppu_state.vblank = ppu.vblank();
+                save_state.ppu_state.oam = ppu.oam().to_vec();
+                save_state.ppu_state.palette_ram = ppu.palette_ram().to_vec();
+                
+                // Convert frame buffer to u32 for serialization
+                let frame_buffer = ppu.frame_buffer();
+                save_state.ppu_state.frame_buffer = frame_buffer.iter()
+                    .map(|pixel| pixel.to_u32())
+                    .collect();
+            }
+            
+            // Save memory state
+            save_state.memory_state.ram = self.bus.ram.to_vec();
+            let mapper = self.bus.mapper();
+            if let Some(ram) = mapper.get_prg_ram() {
+                save_state.memory_state.prg_ram = ram.to_vec();
+            }
+            
+            // Save mapper state
+            save_state.mapper_state.mapper_type = self.bus.cartridge.as_ref()
+                .map(|c| c.mapper_number())
+                .unwrap_or(0);
+            // Note: Mapper-specific state serialization would go here
+            
+            save_state.save_to_file(&self.save_system, slot)?;
+        }
+        Ok(())
+    }
+    
+    /// Load state from slot
+    pub fn load_state(&mut self, slot: u8) -> RnesResult<()> {
+        if let Some(ref rom_name) = self.rom_name {
+            let save_state = SaveState::load_from_file(&self.save_system, rom_name, slot)?;
+            
+            // Load CPU state
+            self.cpu.pc = save_state.cpu_state.pc;
+            self.cpu.sp = save_state.cpu_state.sp;
+            self.cpu.a = save_state.cpu_state.a;
+            self.cpu.x = save_state.cpu_state.x;
+            self.cpu.y = save_state.cpu_state.y;
+            self.cpu.status = rnes_cpu6502::StatusFlags::from_bits(save_state.cpu_state.status).unwrap_or_default();
+            self.state.cpu_cycles = save_state.cpu_state.cycles as u32;
+            
+            // Load PPU state
+            let ppu = self.bus.ppu_mut();
+            ppu.set_scanline(save_state.ppu_state.scanline as i32);
+            ppu.set_dot(save_state.ppu_state.dot as u32);
+            ppu.set_frame(save_state.ppu_state.frame);
+            ppu.set_vblank(save_state.ppu_state.vblank);
+            ppu.set_oam(save_state.ppu_state.oam);
+            ppu.set_palette_ram(save_state.ppu_state.palette_ram);
+                
+            // Convert frame buffer back from u32
+            let frame_buffer: Vec<rnes_common::Pixel> = save_state.ppu_state.frame_buffer.iter()
+                .map(|&pixel| rnes_common::Pixel::from_u32(pixel))
+                .collect();
+            ppu.set_frame_buffer(frame_buffer);
+            
+            // Load memory state
+            if save_state.memory_state.ram.len() == self.bus.ram.len() {
+                self.bus.ram.copy_from_slice(&save_state.memory_state.ram);
+            }
+            let mapper = self.bus.mapper_mut();
+            if !save_state.memory_state.prg_ram.is_empty() {
+                mapper.load_prg_ram(&save_state.memory_state.prg_ram)?;
+            }
+            
+            tracing::info!("Loaded save state from slot {}", slot);
+        }
+        Ok(())
+    }
+    
+    /// Check if save state exists
+    pub fn has_save_state(&self, slot: u8) -> bool {
+        if let Some(ref rom_name) = self.rom_name {
+            SaveState::exists(&self.save_system, rom_name, slot)
+        } else {
+            false
+        }
+    }
+    
+    /// Delete save state
+    pub fn delete_save_state(&self, slot: u8) -> RnesResult<()> {
+        if let Some(ref rom_name) = self.rom_name {
+            SaveState::delete(&self.save_system, rom_name, slot)
+        } else {
+            Ok(())
+        }
     }
 }
 

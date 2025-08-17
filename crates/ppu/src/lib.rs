@@ -695,6 +695,16 @@ impl Ppu {
         &self.frame_buffer
     }
     
+    /// Get OAM data
+    pub fn oam(&self) -> &[Byte] {
+        &self.oam
+    }
+    
+    /// Get palette RAM data
+    pub fn palette_ram(&self) -> &[Byte] {
+        &self.palette_ram
+    }
+    
     /// Check if VBlank is active
     pub fn vblank(&self) -> bool {
         self.state.vblank
@@ -728,6 +738,57 @@ impl Ppu {
     /// Get PPU state
     pub fn state(&self) -> &PpuState {
         &self.state
+    }
+    
+    /// Set scanline
+    pub fn set_scanline(&mut self, scanline: Scanline) {
+        self.state.scanline = scanline;
+    }
+    
+    /// Set dot
+    pub fn set_dot(&mut self, dot: Dot) {
+        self.state.dot = dot;
+    }
+    
+    /// Set frame count
+    pub fn set_frame(&mut self, frame: u32) {
+        self.state.frame_count = frame as u64;
+    }
+    
+    /// Set VBlank state
+    pub fn set_vblank(&mut self, vblank: bool) {
+        self.state.vblank = vblank;
+    }
+    
+    /// Set OAM data
+    pub fn set_oam(&mut self, oam: Vec<u8>) {
+        if oam.len() == self.oam.len() {
+            self.oam.copy_from_slice(&oam);
+        }
+    }
+    
+    /// Set palette RAM data
+    pub fn set_palette_ram(&mut self, palette_ram: Vec<u8>) {
+        if palette_ram.len() == self.palette_ram.len() {
+            self.palette_ram.copy_from_slice(&palette_ram);
+        }
+    }
+    
+    /// Set frame buffer
+    pub fn set_frame_buffer(&mut self, frame_buffer: Vec<Pixel>) {
+        if frame_buffer.len() == self.frame_buffer.len() {
+            self.frame_buffer = frame_buffer;
+        }
+    }
+    
+    /// Get mapper instance
+    pub fn mapper(&self) -> &dyn rnes_mappers::Mapper {
+        self.mapper.as_ref()
+    }
+    
+    /// Get mutable mapper instance
+    pub fn mapper_mut(&mut self) -> &mut dyn rnes_mappers::Mapper {
+        self.mapper.as_mut()
     }
     
     /// Debug: Get PPU internal state

@@ -28,6 +28,35 @@ pub trait Mapper {
     
     /// Step mapper (for mappers with internal state)
     fn step(&mut self) {}
+    
+    /// Get PRG RAM for battery backup
+    fn get_prg_ram(&self) -> Option<&[Byte]> {
+        None
+    }
+    
+    /// Get mutable PRG RAM for battery backup
+    fn get_prg_ram_mut(&mut self) -> Option<&mut [Byte]> {
+        None
+    }
+    
+    /// Load PRG RAM from battery backup
+    fn load_prg_ram(&mut self, data: &[Byte]) -> RnesResult<()> {
+        if let Some(ram) = self.get_prg_ram_mut() {
+            if data.len() <= ram.len() {
+                ram[..data.len()].copy_from_slice(data);
+                Ok(())
+            } else {
+                Err(rnes_common::RnesError::Serialization("PRG RAM data too large".to_string()))
+            }
+        } else {
+            Err(rnes_common::RnesError::Serialization("No PRG RAM available".to_string()))
+        }
+    }
+    
+    /// Check if mapper has battery backup
+    fn has_battery(&self) -> bool {
+        false
+    }
 }
 
 /// NROM Mapper (Mapper 0)
@@ -274,6 +303,18 @@ impl Mapper for Mmc1Mapper {
             3 => rnes_cartridge::Mirroring::Horizontal,
             _ => unreachable!(),
         }
+    }
+    
+    fn get_prg_ram(&self) -> Option<&[Byte]> {
+        Some(&self.prg_ram)
+    }
+    
+    fn get_prg_ram_mut(&mut self) -> Option<&mut [Byte]> {
+        Some(&mut self.prg_ram)
+    }
+    
+    fn has_battery(&self) -> bool {
+        self.cartridge.has_battery()
     }
 }
 
