@@ -1,6 +1,6 @@
 use rnes_core::Emulator;
 use rnes_cartridge::Cartridge;
-use rnes_common::SaveSystem;
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🎮 M5 Demo: MMC3 Mapper with Scanline IRQ");
@@ -98,9 +98,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test PRG ROM reading
     println!("\n📖 Testing PRG ROM Reading:");
     let value_8000 = emulator.bus.read_byte(0x8000)?;
-    let value_C000 = emulator.bus.read_byte(0xC000)?;
+    let value_c000 = emulator.bus.read_byte(0xC000)?;
     println!("Value at 0x8000: 0x{:02X}", value_8000);
-    println!("Value at 0xC000: 0x{:02X}", value_C000);
+    println!("Value at 0xC000: 0x{:02X}", value_c000);
     
     // Test CHR ROM reading
     println!("\n🎨 Testing CHR ROM Reading:");

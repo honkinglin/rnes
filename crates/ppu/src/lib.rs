@@ -634,72 +634,7 @@ impl Ppu {
         }
     }
     
-    /// Render sprite scanline (legacy method for compatibility)
-    fn render_sprite_scanline(&mut self, scanline: usize) -> RnesResult<()> {
-        // Clear sprite rendering state for the new scanline
-        self.timing_state.sprite_pipeline = SpritePipeline::default();
-        
-        // Evaluate sprites for this scanline
-        self.evaluate_sprites(scanline)?;
-        
-        // Render sprites in order of Y position
-        let sprites_to_render = self.timing_state.sprite_pipeline.sprites_on_scanline.clone();
-        for sprite in sprites_to_render {
-            self.render_sprite(sprite, scanline)?;
-        }
-        
-        // Check for sprite zero hit
-        if self.timing_state.sprite_pipeline.sprite_zero_hit {
-            self.timing_state.sprite_zero_hit = true;
-        }
-        
-        // Check for sprite overflow
-        if self.timing_state.sprite_pipeline.sprite_overflow {
-            self.timing_state.sprite_overflow = true;
-        }
-        
-        Ok(())
-    }
-    
-    /// Evaluate sprites for current scanline (legacy method for compatibility)
-    fn evaluate_sprites(&mut self, scanline: usize) -> RnesResult<()> {
-        let sprite_height = if self.registers.ppuctrl & 0x20 != 0 { 16 } else { 8 };
-        
-        // Scan OAM for sprites visible on this scanline
-        for i in 0..64 { // 64 sprites in OAM
-            let oam_addr = i * 4;
-            let sprite_y = self.oam[oam_addr];
-            let sprite_tile_id = self.oam[oam_addr + 1];
-            let sprite_attributes = self.oam[oam_addr + 2];
-            let sprite_x = self.oam[oam_addr + 3];
-            
-            // Check if sprite is visible on this scanline
-            if sprite_y < 240 && sprite_y + sprite_height > scanline as Byte && sprite_y <= scanline as Byte {
-                // Add sprite to scanline list
-                let sprite = Sprite {
-                    y: sprite_y,
-                    tile_id: sprite_tile_id,
-                    attributes: sprite_attributes,
-                    x: sprite_x,
-                };
-                
-                self.timing_state.sprite_pipeline.sprites_on_scanline.push(sprite);
-                
-                // Check for sprite zero hit
-                if i == 0 {
-                    self.timing_state.sprite_pipeline.sprite_zero_hit = true;
-                }
-                
-                // Check for sprite overflow (more than 8 sprites on scanline)
-                if self.timing_state.sprite_pipeline.sprites_on_scanline.len() > 8 {
-                    self.timing_state.sprite_pipeline.sprite_overflow = true;
-                    break; // Only first 8 sprites are rendered
-                }
-            }
-        }
-        
-        Ok(())
-    }
+
     
     /// Render a single sprite (legacy method for compatibility)
     fn render_sprite(&mut self, sprite: Sprite, scanline: usize) -> RnesResult<()> {
@@ -989,6 +924,10 @@ impl Ppu {
             0x2001 => {
                 // PPUMASK
                 self.registers.ppumask = value;
+                // Update rendering flags immediately
+                self.timing_state.rendering_enabled = self.registers.ppumask & 0x18 != 0;
+                self.timing_state.background_enabled = self.registers.ppumask & 0x08 != 0;
+                self.timing_state.sprites_enabled = self.registers.ppumask & 0x10 != 0;
                 Ok(())
             }
             0x2002 => {
@@ -1131,10 +1070,7 @@ impl Ppu {
         self.registers.ppumask & 0x08 != 0
     }
     
-    /// Check if sprites are enabled
-    fn is_sprites_enabled(&self) -> bool {
-        self.registers.ppumask & 0x10 != 0
-    }
+
     
     /// Get OAM DMA address (for testing)
     pub fn oam_dma_addr(&self) -> Word {
@@ -1197,7 +1133,7 @@ impl Ppu {
 mod tests {
     use super::*;
     use rnes_mappers::NromMapper;
-    use rnes_cartridge::{Cartridge, Mirroring};
+    use rnes_cartridge::Cartridge;
     
     #[test]
     fn test_sprite_creation() {

@@ -330,7 +330,7 @@ fn test_m2_basic_functionality() {
     // Test OAM DMA
     ppu.start_oam_dma(0x02);
     assert!(ppu.oam_dma_active());
-    assert_eq!(ppu.state().oam_dma_addr, 0x0200);
+    assert_eq!(ppu.oam_dma_addr(), 0x0200);
     
     // Test sprite rendering state
     let sprite_state = SpriteRenderingState::default();

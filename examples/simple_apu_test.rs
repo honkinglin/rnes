@@ -1,6 +1,6 @@
 use rnes_core::Emulator;
 use rnes_cartridge::Cartridge;
-use std::env;
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging

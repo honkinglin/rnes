@@ -1,7 +1,6 @@
-use rnes_ppu::{Ppu, PpuPhase, BackgroundPipeline, SpritePipeline};
+use rnes_ppu::{Ppu, PpuPhase};
 use rnes_mappers::NromMapper;
-use rnes_cartridge::{Cartridge, Mirroring};
-use rnes_common::{Byte, Word, Pixel};
+use rnes_cartridge::Cartridge;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== PPU Timing Optimization Demo ===");
@@ -99,7 +98,7 @@ fn demonstrate_timing_optimization(ppu: &Ppu) {
         }
         PpuPhase::Visible => {
             println!("  Visible scanline: Pixel rendering and tile fetching");
-            let scanline = ppu.scanline() as usize;
+            let _scanline = ppu.scanline() as usize;
             let dot = ppu.dot() as usize;
             
             if dot >= 1 && dot <= 64 {
@@ -126,7 +125,7 @@ fn demonstrate_vram_caching(ppu: &mut Ppu) -> Result<(), Box<dyn std::error::Err
     
     // Simulate some VRAM reads to populate cache
     println!("Simulating VRAM reads...");
-    for addr in 0x2000..0x2100 {
+    for _addr in 0x2000..0x2100 {
         let _ = ppu.read_register(0x2007); // This will trigger VRAM reads
     }
     

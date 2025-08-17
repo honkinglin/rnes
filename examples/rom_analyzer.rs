@@ -74,12 +74,12 @@ fn analyze_rom(rom_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         let byte3 = cartridge.prg_rom[i + 2];
         
         // Look for STA $20xx (store to PPU registers)
-        if byte1 == 0x8D && byte2 >= 0x00 && byte2 <= 0x07 && byte3 == 0x20 {
+        if byte1 == 0x8D && byte2 <= 0x07 && byte3 == 0x20 {
             ppu_writes.push((i, byte2, byte3));
         }
         
         // Look for STA $20xx (store to PPU registers) - different addressing
-        if byte1 == 0x9D && byte2 >= 0x00 && byte2 <= 0x07 && byte3 == 0x20 {
+        if byte1 == 0x9D && byte2 <= 0x07 && byte3 == 0x20 {
             ppu_writes.push((i, byte2, byte3));
         }
     }

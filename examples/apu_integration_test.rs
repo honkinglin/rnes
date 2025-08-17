@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn test_basic_apu_functionality() -> Result<(), Box<dyn std::error::Error>> {
-    let mut runner = ApuTestRunner::new()
+    let _runner = ApuTestRunner::new()
         .with_max_cycles(100000)
         .with_audio_check(true)
         .with_min_audio_samples(100);
@@ -126,6 +126,7 @@ fn test_blargg_apu_suite(test_roms_dir: &PathBuf) -> Result<(), Box<dyn std::err
     }
     
     println!("  📊 Results: {}/{} tests passed", passed, total);
+    println!("  📊 Failed tests: {}", failed);
     
     Ok(())
 }
