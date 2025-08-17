@@ -7,6 +7,7 @@ members = [
     "crates/cartridge",
     "crates/core",
     "crates/common",
+    "crates/test-suite",
     "frontend/native",
 ]
 
@@ -44,6 +45,10 @@ authors = ["Your Name <your.email@example.com>"]
 description = "NES emulator written in Rust"
 license = "MIT"
 repository = "https://github.com/yourusername/rnes"
+
+# Rust version requirement
+[workspace.metadata]
+rust-version = "1.89"
 
 [profile.release]
 opt-level = 3

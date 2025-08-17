@@ -1,0 +1,28 @@
+[package]
+name = "rnes-test-suite"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "NES emulator test suite"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rnes-cpu6502 = { path = "../cpu6502" }
+rnes-common = { path = "../common" }
+rnes-core = { path = "../core" }
+rnes-cartridge = { path = "../cartridge" }
+
+# Test dependencies
+serde = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[[test]]
+name = "cpu_integration_tests"
+path = "src/cpu_integration_tests.rs"
+
+[[test]]
+name = "cpu_test_runner"
+path = "src/cpu_test_runner.rs"

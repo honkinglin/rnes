@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use rnes_common::{Byte, Word, Cycles, RnesResult, MemoryAccess};
-use crate::{StatusFlags, execute_instruction};
+use crate::{StatusFlags, execute_instruction, get_instruction_length};
 
 /// 6502 CPU implementation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,9 +79,16 @@ impl Cpu {
         let opcode = memory.read_byte(self.pc)?;
         let instruction_cycles = execute_instruction(self, memory, opcode)?;
         
-        // Update program counter (except for jump instructions)
-        if opcode != 0x4C { // JMP
-            self.pc += 1;
+        // Update program counter based on instruction length
+        let instruction_length = get_instruction_length(opcode);
+        if !matches!(opcode, 
+            0x4C | 0x6C | // JMP
+            0x20 | // JSR
+            0x40 | // RTI
+            0x60 | // RTS
+            0x90 | 0xB0 | 0xF0 | 0x30 | 0xD0 | 0x10 | 0x50 | 0x70 // Branch instructions
+        ) {
+            self.pc += instruction_length;
         }
         
         self.cycles += instruction_cycles;

@@ -8,7 +8,7 @@ RNES is a high-performance, cross-platform NES emulator with a modular design, s
 
 ## Tech Stack
 
-- **Language**: Rust 1.78+ (Edition 2021)
+- **Language**: Rust 1.89+
 - **Architecture**: Workspace multi-crate design
 - **Graphics**: wgpu (cross-platform GPU rendering)
 - **Audio**: cpal (cross-platform audio)
@@ -19,25 +19,26 @@ RNES is a high-performance, cross-platform NES emulator with a modular design, s
 
 ```
 crates/
-  cpu6502/        # 6502 CPU core
-  ppu/            # Picture Processing Unit
-  apu/            # Audio Processing Unit
-  mappers/        # Mapper implementations
-  cartridge/      # Cartridge management
-  core/           # Bus, DMA, scheduler
-  common/         # Shared types and utilities
+  common/         # Shared types, traits, and utilities
+  cpu6502/        # 6502 CPU implementation (151 instructions)
+  ppu/            # Picture Processing Unit (planned)
+  apu/            # Audio Processing Unit (planned)
+  mappers/        # Memory mapper implementations (planned)
+  cartridge/      # Cartridge and ROM management
+  core/           # Bus, DMA, and emulator core (planned)
+  test-suite/     # Integration testing framework
 frontend/
-  native/         # Native application
+  native/         # Native desktop application
   web/            # Web frontend (planned)
 ```
 
 ## Development Roadmap
 
 ### M0: CPU Ready ✅
-- [ ] 6502 instruction set implementation
-- [ ] Addressing modes
-- [ ] Cycle counting
-- [ ] NMI/IRQ handling
+- [x] 6502 instruction set implementation
+- [x] Addressing modes
+- [x] Cycle counting
+- [x] NMI/IRQ handling
 
 ### M1: PPU Background Rendering + NROM
 - [ ] PPU timing model
@@ -114,7 +115,7 @@ cargo run --release -- path/to/rom.nes
 
 ### Requirements
 
-- Rust 1.78+
+- Rust 1.89+
 - Vulkan-capable GPU (for wgpu)
 
 ### Testing
@@ -123,6 +124,10 @@ cargo run --release -- path/to/rom.nes
 # Run all tests
 cargo test
 
+# Run CPU integration tests (requires test ROMs)
+./scripts/download_test_roms.sh
+cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored
+
 # Run benchmarks
 cargo bench
 
@@ -130,6 +135,15 @@ cargo bench
 cargo clippy
 cargo fmt
 ```
+
+#### Test ROMs
+
+This project uses test ROMs for comprehensive CPU testing. These ROMs are not included in the repository due to copyright considerations. To run integration tests:
+
+1. Download test ROMs: `./scripts/download_test_roms.sh`
+2. Run tests: `cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored`
+
+The test ROMs are automatically ignored by Git and will not be committed to the repository.
 
 ## License
 
