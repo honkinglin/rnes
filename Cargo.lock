@@ -1764,6 +1764,8 @@ dependencies = [
  "rnes-cartridge",
  "rnes-common",
  "rnes-core",
+ "rnes-mappers",
+ "rnes-ppu",
  "rnes-test-suite",
  "tracing-subscriber",
 ]

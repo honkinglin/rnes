@@ -91,9 +91,15 @@ path = "rom_debug.rs"
 name = "cpu_step_debug"
 path = "cpu_step_debug.rs"
 
+[[bin]]
+name = "ppu_timing_optimization_demo"
+path = "ppu_timing_optimization_demo.rs"
+
 [dependencies]
 rnes-core = { path = "../crates/core" }
 rnes-cartridge = { path = "../crates/cartridge" }
 rnes-common = { path = "../crates/common" }
 rnes-test-suite = { path = "../crates/test-suite" }
+rnes-ppu = { path = "../crates/ppu" }
+rnes-mappers = { path = "../crates/mappers" }
 tracing-subscriber = "0.3"

@@ -81,6 +81,133 @@ impl Default for SpriteRenderingState {
     }
 }
 
+/// PPU timing phases for optimization
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PpuPhase {
+    PreRender,
+    Visible,
+    PostRender,
+    VBlank,
+}
+
+/// Background rendering pipeline state
+#[derive(Debug, Clone)]
+pub struct BackgroundPipeline {
+    pub nametable_latch: Byte,
+    pub attribute_latch: Byte,
+    pub pattern_low_latch: Byte,
+    pub pattern_high_latch: Byte,
+    pub shift_high: Word,
+    pub shift_low: Word,
+    pub attr_shift_high: Word,
+    pub attr_shift_low: Word,
+    pub fine_x: Byte,
+    pub tile_counter: Byte,
+    pub fetch_phase: u8, // 0-7 for each tile fetch cycle
+}
+
+impl Default for BackgroundPipeline {
+    fn default() -> Self {
+        Self {
+            nametable_latch: 0,
+            attribute_latch: 0,
+            pattern_low_latch: 0,
+            pattern_high_latch: 0,
+            shift_high: 0,
+            shift_low: 0,
+            attr_shift_high: 0,
+            attr_shift_low: 0,
+            fine_x: 0,
+            tile_counter: 0,
+            fetch_phase: 0,
+        }
+    }
+}
+
+/// Sprite rendering pipeline state
+#[derive(Debug, Clone)]
+pub struct SpritePipeline {
+    pub sprites_on_scanline: Vec<Sprite>,
+    pub sprite_patterns: Vec<[Byte; 8]>, // Pattern data for each sprite
+    pub sprite_zero_hit: bool,
+    pub sprite_overflow: bool,
+    pub evaluation_phase: u8, // 0-63 for OAM evaluation
+    pub rendering_phase: u8,  // 0-7 for sprite rendering
+}
+
+impl Default for SpritePipeline {
+    fn default() -> Self {
+        Self {
+            sprites_on_scanline: Vec::new(),
+            sprite_patterns: Vec::new(),
+            sprite_zero_hit: false,
+            sprite_overflow: false,
+            evaluation_phase: 0,
+            rendering_phase: 0,
+        }
+    }
+}
+
+/// Optimized PPU timing state
+#[derive(Debug, Clone)]
+pub struct PpuTimingState {
+    pub phase: PpuPhase,
+    pub scanline: Scanline,
+    pub dot: Dot,
+    pub frame_count: u64,
+    pub vblank: bool,
+    pub sprite_zero_hit: bool,
+    pub sprite_overflow: bool,
+    
+    // Internal registers
+    pub v: Word,  // Current VRAM address
+    pub t: Word,  // Temporary VRAM address
+    pub x: Byte,  // Fine X scroll
+    pub w: bool,  // Write toggle
+    
+    // Background pipeline
+    pub bg_pipeline: BackgroundPipeline,
+    
+    // Sprite pipeline
+    pub sprite_pipeline: SpritePipeline,
+    
+    // Timing optimization flags
+    pub rendering_enabled: bool,
+    pub background_enabled: bool,
+    pub sprites_enabled: bool,
+    
+    // Memory access optimization
+    pub last_vram_access: Word,
+    pub vram_cache: [Byte; 256], // Small cache for frequently accessed VRAM
+    pub cache_valid: [bool; 256],
+}
+
+impl Default for PpuTimingState {
+    fn default() -> Self {
+        Self {
+            phase: PpuPhase::PreRender,
+            scanline: -1,
+            dot: 0,
+            frame_count: 0,
+            vblank: false,
+            sprite_zero_hit: false,
+            sprite_overflow: false,
+            v: 0,
+            t: 0,
+            x: 0,
+            w: false,
+            bg_pipeline: BackgroundPipeline::default(),
+            sprite_pipeline: SpritePipeline::default(),
+            rendering_enabled: false,
+            background_enabled: false,
+            sprites_enabled: false,
+            last_vram_access: 0,
+            vram_cache: [0; 256],
+            cache_valid: [false; 256],
+        }
+    }
+}
+
 /// PPU registers
 #[derive(Debug, Clone, Copy)]
 pub struct PpuRegisters {
@@ -109,119 +236,65 @@ impl Default for PpuRegisters {
     }
 }
 
-/// PPU internal state
-#[derive(Debug)]
-pub struct PpuState {
-    pub scanline: Scanline,
-    pub dot: Dot,
-    pub frame_count: u64,
-    pub vblank: bool,
-    pub sprite_overflow: bool,
-    pub sprite_zero_hit: bool,
-    
-    // Internal registers
-    pub v: Word,  // Current VRAM address
-    pub t: Word,  // Temporary VRAM address
-    pub x: Byte,  // Fine X scroll
-    pub w: bool,  // Write toggle
-    
-    // Background rendering state
-    pub bg_shift_high: Word,
-    pub bg_shift_low: Word,
-    pub bg_attr_shift_high: Word,
-    pub bg_attr_shift_low: Word,
-    pub bg_next_tile_id: Byte,
-    pub bg_next_tile_attr: Byte,
-    pub bg_next_tile_lsb: Byte,
-    pub bg_next_tile_msb: Byte,
-    
-    // Sprite rendering state
-    pub sprite_rendering: SpriteRenderingState,
-    pub oam_dma_active: bool,
-    pub oam_dma_cycles: u16,
-    pub oam_dma_addr: Word,
-}
-
-impl Default for PpuState {
-    fn default() -> Self {
-        Self {
-            scanline: -1,
-            dot: 0,
-            frame_count: 0,
-            vblank: false,
-            sprite_overflow: false,
-            sprite_zero_hit: false,
-            v: 0,
-            t: 0,
-            x: 0,
-            w: false,
-            bg_shift_high: 0,
-            bg_shift_low: 0,
-            bg_attr_shift_high: 0,
-            bg_attr_shift_low: 0,
-            bg_next_tile_id: 0,
-            bg_next_tile_attr: 0,
-            bg_next_tile_lsb: 0,
-            bg_next_tile_msb: 0,
-            sprite_rendering: SpriteRenderingState::default(),
-            oam_dma_active: false,
-            oam_dma_cycles: 0,
-            oam_dma_addr: 0,
-        }
-    }
-}
-
-/// PPU implementation
+/// PPU implementation with timing optimization
 pub struct Ppu {
     registers: PpuRegisters,
-    state: PpuState,
+    timing_state: PpuTimingState,
     oam: [Byte; 256],           // Object Attribute Memory
     palette_ram: [Byte; 32],    // Palette RAM
     frame_buffer: Vec<Pixel>,   // Frame buffer
     mapper: Box<dyn Mapper>,
+    
+    // Timing optimization
+    oam_dma_active: bool,
+    oam_dma_cycles: u16,
+    oam_dma_addr: Word,
 }
 
 impl Ppu {
     pub fn new(mapper: Box<dyn Mapper>) -> Self {
         Self {
             registers: PpuRegisters::default(),
-            state: PpuState::default(),
+            timing_state: PpuTimingState::default(),
             oam: [0; 256],
             palette_ram: [0; 32],
             frame_buffer: vec![Pixel::BLACK; SCREEN_WIDTH * SCREEN_HEIGHT],
             mapper,
+            oam_dma_active: false,
+            oam_dma_cycles: 0,
+            oam_dma_addr: 0,
         }
     }
     
     /// Start OAM DMA transfer
     pub fn start_oam_dma(&mut self, page: Byte) {
-        self.state.oam_dma_active = true;
-        self.state.oam_dma_cycles = 0;
-        self.state.oam_dma_addr = (page as Word) << 8;
+        self.oam_dma_active = true;
+        self.oam_dma_cycles = 0;
+        self.oam_dma_addr = (page as Word) << 8;
     }
     
     /// Step OAM DMA transfer
     pub fn step_oam_dma(&mut self, memory: &dyn rnes_common::MemoryAccess) -> RnesResult<()> {
-        if !self.state.oam_dma_active {
+        if !self.oam_dma_active {
             return Ok(());
         }
         
         // OAM DMA takes 513 cycles (1 dummy read + 256 writes)
-        if self.state.oam_dma_cycles < 513 {
-            if self.state.oam_dma_cycles == 0 {
+        if self.oam_dma_cycles < 513 {
+            if self.oam_dma_cycles == 0 {
                 // Dummy read cycle
-                let _ = memory.read_byte(self.state.oam_dma_addr)?;
+                let _ = memory.read_byte(self.oam_dma_addr)?;
             } else {
                 // Write to OAM
-                let oam_addr = (self.state.oam_dma_cycles - 1) as usize;
-                let data = memory.read_byte(self.state.oam_dma_addr)?;
+                let oam_addr = (self.oam_dma_cycles - 1) as usize;
+                let data = memory.read_byte(self.oam_dma_addr)?;
                 self.oam[oam_addr] = data;
-                self.state.oam_dma_addr = self.state.oam_dma_addr.wrapping_add(1);
+                self.oam_dma_addr = self.oam_dma_addr.wrapping_add(1);
             }
-            self.state.oam_dma_cycles += 1;
+            self.oam_dma_cycles += 1;
         } else {
             // DMA transfer complete
-            self.state.oam_dma_active = false;
+            self.oam_dma_active = false;
         }
         
         Ok(())
@@ -229,40 +302,25 @@ impl Ppu {
     
     /// Check if OAM DMA is active
     pub fn oam_dma_active(&self) -> bool {
-        self.state.oam_dma_active
+        self.oam_dma_active
     }
     
-    /// Step PPU by one dot
+    /// Optimized PPU step with precise timing
     pub fn step(&mut self) -> RnesResult<()> {
         // Handle OAM DMA if active
-        if self.state.oam_dma_active {
-            // For now, we'll handle DMA in a simplified way
-            // In a real implementation, this would need access to system memory
+        if self.oam_dma_active {
             return Ok(());
         }
         
-        // Update scanline and dot
-        self.state.dot += 1;
-        if self.state.dot >= DOTS_PER_SCANLINE as Dot {
-            self.state.dot = 0;
-            self.state.scanline += 1;
-            
-            if self.state.scanline >= TOTAL_SCANLINES as Scanline {
-                self.state.scanline = -1;
-                self.state.frame_count += 1;
-            }
-        }
+        // Update timing state
+        self.update_timing_state();
         
-        // Handle different scanline phases
-        if self.state.scanline < VISIBLE_SCANLINES as Scanline {
-            // Visible scanlines
-            self.render_visible_scanline()?;
-        } else if self.state.scanline == VISIBLE_SCANLINES as Scanline {
-            // Pre-render scanline
-            self.render_pre_render_scanline()?;
-        } else {
-            // VBlank scanlines
-            self.render_vblank_scanline()?;
+        // Execute timing-specific operations
+        match self.timing_state.phase {
+            PpuPhase::PreRender => self.step_pre_render()?,
+            PpuPhase::Visible => self.step_visible()?,
+            PpuPhase::PostRender => self.step_post_render()?,
+            PpuPhase::VBlank => self.step_vblank()?,
         }
         
         // Step mapper for IRQ handling
@@ -271,58 +329,119 @@ impl Ppu {
         Ok(())
     }
     
-    /// Render visible scanline
-    fn render_visible_scanline(&mut self) -> RnesResult<()> {
-        let scanline = self.state.scanline as usize;
-        
-        // Background rendering
-        if self.is_background_enabled() {
-            self.render_background_scanline(scanline)?;
+    /// Update PPU timing state
+    fn update_timing_state(&mut self) {
+        // Update dot and scanline
+        self.timing_state.dot += 1;
+        if self.timing_state.dot >= DOTS_PER_SCANLINE as Dot {
+            self.timing_state.dot = 0;
+            self.timing_state.scanline += 1;
+            
+            if self.timing_state.scanline >= TOTAL_SCANLINES as Scanline {
+                self.timing_state.scanline = -1;
+                self.timing_state.frame_count += 1;
+            }
         }
         
-        // Sprite rendering
-        if self.is_sprites_enabled() {
-            self.render_sprite_scanline(scanline)?;
-        }
+        // Update phase based on scanline
+        self.timing_state.phase = if self.timing_state.scanline < VISIBLE_SCANLINES as Scanline {
+            PpuPhase::Visible
+        } else if self.timing_state.scanline == VISIBLE_SCANLINES as Scanline {
+            PpuPhase::PreRender
+        } else if self.timing_state.scanline == (VISIBLE_SCANLINES + 1) as Scanline {
+            PpuPhase::PostRender
+        } else {
+            PpuPhase::VBlank
+        };
         
-        Ok(())
+        // Update rendering flags
+        self.timing_state.rendering_enabled = self.registers.ppumask & 0x18 != 0;
+        self.timing_state.background_enabled = self.registers.ppumask & 0x08 != 0;
+        self.timing_state.sprites_enabled = self.registers.ppumask & 0x10 != 0;
     }
     
-    /// Render pre-render scanline
-    fn render_pre_render_scanline(&mut self) -> RnesResult<()> {
+    /// Step pre-render scanline
+    fn step_pre_render(&mut self) -> RnesResult<()> {
+        let dot = self.timing_state.dot as usize;
+        
         // Clear VBlank flag at dot 1
-        if self.state.dot == 1 {
-            self.state.vblank = false;
+        if dot == 1 {
+            self.timing_state.vblank = false;
             self.registers.ppustatus &= !0x80;
         }
         
         // Background rendering (same as visible scanlines)
-        if self.is_background_enabled() {
-            self.render_background_scanline(0)?;
+        if self.timing_state.background_enabled {
+            self.step_background_rendering()?;
+        }
+        
+        // Sprite evaluation for next scanline
+        if self.timing_state.sprites_enabled && dot >= 257 && dot <= 320 {
+            self.step_sprite_evaluation()?;
         }
         
         Ok(())
     }
     
-    /// Render VBlank scanline
-    fn render_vblank_scanline(&mut self) -> RnesResult<()> {
+    /// Step visible scanline
+    fn step_visible(&mut self) -> RnesResult<()> {
+        let dot = self.timing_state.dot as usize;
+        let scanline = self.timing_state.scanline as usize;
+        
+        // Background rendering
+        if self.timing_state.background_enabled {
+            self.step_background_rendering()?;
+        }
+        
+        // Sprite evaluation (cycles 1-64)
+        if self.timing_state.sprites_enabled && dot >= 1 && dot <= 64 {
+            self.step_sprite_evaluation()?;
+        }
+        
+        // Sprite rendering (cycles 65-256)
+        if self.timing_state.sprites_enabled && dot >= 65 && dot <= 256 {
+            self.step_sprite_rendering(scanline)?;
+        }
+        
+        // Background tile fetching for next scanline (cycles 257-320)
+        if self.timing_state.background_enabled && dot >= 257 && dot <= 320 {
+            self.step_background_fetching()?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Step post-render scanline
+    fn step_post_render(&mut self) -> RnesResult<()> {
+        // Post-render scanline is mostly idle
+        Ok(())
+    }
+    
+    /// Step VBlank scanlines
+    fn step_vblank(&mut self) -> RnesResult<()> {
+        let scanline = self.timing_state.scanline as usize;
+        let dot = self.timing_state.dot as usize;
+        
         // Set VBlank flag at scanline 241, dot 1
-        if self.state.scanline == 241 && self.state.dot == 1 {
-            self.state.vblank = true;
+        if scanline == 241 && dot == 1 {
+            self.timing_state.vblank = true;
             self.registers.ppustatus |= 0x80;
         }
         
         Ok(())
     }
     
-    /// Render background for a scanline
-    fn render_background_scanline(&mut self, scanline: usize) -> RnesResult<()> {
-        // Background rendering logic
-        if self.state.dot >= 1 && self.state.dot <= 256 {
-            let x = (self.state.dot - 1) as usize;
+    /// Optimized background rendering step
+    fn step_background_rendering(&mut self) -> RnesResult<()> {
+        let dot = self.timing_state.dot as usize;
+        let scanline = self.timing_state.scanline as usize;
+        
+        // Render pixel (cycles 1-256)
+        if dot >= 1 && dot <= 256 {
+            let x = (dot - 1) as usize;
             
             // Get pixel color from background
-            let color = self.get_background_pixel(x, scanline)?;
+            let color = self.get_background_pixel_optimized(x, scanline)?;
             
             // Write to frame buffer (only for visible scanlines)
             if scanline < SCREEN_HEIGHT {
@@ -333,29 +452,137 @@ impl Ppu {
             }
         }
         
-        // Background tile fetching
-        if self.state.dot >= 1 && self.state.dot <= 256 {
-            self.fetch_background_tiles()?;
+        // Background tile fetching (cycles 1-256)
+        if dot >= 1 && dot <= 256 {
+            self.step_background_fetching()?;
         }
         
-        // Shift background shift registers
-        if self.state.dot >= 1 && self.state.dot <= 256 {
+        // Shift background registers
+        if dot >= 1 && dot <= 256 {
             self.shift_background_registers();
         }
         
         Ok(())
     }
     
-    /// Get background pixel color
-    fn get_background_pixel(&self, x: usize, _scanline: usize) -> RnesResult<Pixel> {
+    /// Optimized background tile fetching
+    fn step_background_fetching(&mut self) -> RnesResult<()> {
+        let dot = self.timing_state.dot as usize;
+        let cycle = if dot >= 1 && dot <= 256 {
+            dot
+        } else if dot >= 257 && dot <= 320 {
+            dot - 256
+        } else {
+            return Ok(());
+        };
+        
+        // Tile fetching cycles (every 8 cycles)
+        if cycle >= 1 && cycle <= 256 {
+            let tile_cycle = (cycle - 1) % 8;
+            
+            match tile_cycle {
+                0 => {
+                    // Fetch nametable byte
+                    let addr = self.get_nametable_address()?;
+                    self.timing_state.bg_pipeline.nametable_latch = self.read_vram_cached(addr)?;
+                }
+                2 => {
+                    // Fetch attribute byte
+                    let addr = self.get_attribute_address()?;
+                    let attr_byte = self.read_vram_cached(addr)?;
+                    let attr_shift = self.get_attribute_shift()?;
+                    self.timing_state.bg_pipeline.attribute_latch = (attr_byte >> attr_shift) & 0x03;
+                }
+                4 => {
+                    // Fetch pattern table low byte
+                    let addr = self.get_pattern_address(false)?;
+                    self.timing_state.bg_pipeline.pattern_low_latch = self.read_vram_cached(addr)?;
+                }
+                6 => {
+                    // Fetch pattern table high byte
+                    let addr = self.get_pattern_address(true)?;
+                    self.timing_state.bg_pipeline.pattern_high_latch = self.read_vram_cached(addr)?;
+                }
+                7 => {
+                    // Load shift registers
+                    self.load_background_registers();
+                    
+                    // Increment X scroll
+                    self.increment_scroll_x();
+                }
+                _ => {}
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Optimized sprite evaluation
+    fn step_sprite_evaluation(&mut self) -> RnesResult<()> {
+        let dot = self.timing_state.dot as usize;
+        
+        // Sprite evaluation happens in cycles 1-64
+        if dot >= 1 && dot <= 64 {
+            let sprite_index = (dot - 1) / 2; // 2 cycles per sprite
+            
+            if sprite_index < 64 {
+                let oam_addr = sprite_index * 4;
+                let sprite_y = self.oam[oam_addr];
+                let sprite_tile_id = self.oam[oam_addr + 1];
+                let sprite_attributes = self.oam[oam_addr + 2];
+                let sprite_x = self.oam[oam_addr + 3];
+                
+                let sprite_height = if self.registers.ppuctrl & 0x20 != 0 { 16 } else { 8 };
+                let scanline = self.timing_state.scanline as usize;
+                
+                // Check if sprite is visible on this scanline
+                if sprite_y < 240 && sprite_y + sprite_height > scanline as Byte && sprite_y <= scanline as Byte {
+                    let sprite = Sprite {
+                        y: sprite_y,
+                        tile_id: sprite_tile_id,
+                        attributes: sprite_attributes,
+                        x: sprite_x,
+                    };
+                    
+                    self.timing_state.sprite_pipeline.sprites_on_scanline.push(sprite);
+                    
+                    // Check for sprite zero hit
+                    if sprite_index == 0 {
+                        self.timing_state.sprite_pipeline.sprite_zero_hit = true;
+                    }
+                    
+                    // Check for sprite overflow (more than 8 sprites on scanline)
+                    if self.timing_state.sprite_pipeline.sprites_on_scanline.len() > 8 {
+                        self.timing_state.sprite_pipeline.sprite_overflow = true;
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Optimized sprite rendering
+    fn step_sprite_rendering(&mut self, scanline: usize) -> RnesResult<()> {
+        // Render sprites in order of Y position (simplified for timing optimization)
+        let sprites_to_render = self.timing_state.sprite_pipeline.sprites_on_scanline.clone();
+        for sprite in sprites_to_render {
+            self.render_sprite(sprite, scanline)?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Get optimized background pixel color
+    fn get_background_pixel_optimized(&self, x: usize, _scanline: usize) -> RnesResult<Pixel> {
         // Calculate fine X position
-        let fine_x = (x + self.state.x as usize) % 8;
+        let fine_x = (x + self.timing_state.bg_pipeline.fine_x as usize) % 8;
         
         // Get pixel data from shift registers
-        let bit0 = (self.state.bg_shift_low >> (15 - fine_x)) & 1;
-        let bit1 = (self.state.bg_shift_high >> (15 - fine_x)) & 1;
-        let attr_bit0 = (self.state.bg_attr_shift_low >> (7 - fine_x)) & 1;
-        let attr_bit1 = (self.state.bg_attr_shift_high >> (7 - fine_x)) & 1;
+        let bit0 = (self.timing_state.bg_pipeline.shift_low >> (15 - fine_x)) & 1;
+        let bit1 = (self.timing_state.bg_pipeline.shift_high >> (15 - fine_x)) & 1;
+        let attr_bit0 = (self.timing_state.bg_pipeline.attr_shift_low >> (7 - fine_x)) & 1;
+        let attr_bit1 = (self.timing_state.bg_pipeline.attr_shift_high >> (7 - fine_x)) & 1;
         
         let palette_index = (attr_bit1 << 1) | attr_bit0;
         let color_index = (bit1 << 1) | bit0;
@@ -371,156 +598,70 @@ impl Ppu {
         }
     }
     
-    /// Fetch background tiles
-    fn fetch_background_tiles(&mut self) -> RnesResult<()> {
-        let cycle = self.state.dot as usize;
-        
-        match cycle {
-            1..=256 => {
-                // Tile fetching cycles
-                match (cycle - 1) % 8 {
-                    0 => {
-                        // Fetch nametable byte
-                        let addr = self.get_nametable_address()?;
-                        self.state.bg_next_tile_id = self.read_vram(addr)?;
-                    }
-                    2 => {
-                        // Fetch attribute byte
-                        let addr = self.get_attribute_address()?;
-                        let attr_byte = self.read_vram(addr)?;
-                        let attr_shift = self.get_attribute_shift()?;
-                        self.state.bg_next_tile_attr = (attr_byte >> attr_shift) & 0x03;
-                    }
-                    4 => {
-                        // Fetch pattern table low byte
-                        let addr = self.get_pattern_address(false)?;
-                        self.state.bg_next_tile_lsb = self.read_vram(addr)?;
-                    }
-                    6 => {
-                        // Fetch pattern table high byte
-                        let addr = self.get_pattern_address(true)?;
-                        self.state.bg_next_tile_msb = self.read_vram(addr)?;
-                    }
-                    7 => {
-                        // Load shift registers
-                        self.load_background_registers();
-                    }
-                    _ => {}
-                }
-                
-                // Increment X scroll
-                if cycle % 8 == 0 {
-                    self.increment_scroll_x();
-                }
-            }
-            257..=320 => {
-                // Tile fetching for next scanline
-                // (simplified implementation)
-            }
-            _ => {}
-        }
-        
-        Ok(())
-    }
-    
     /// Load background shift registers
     fn load_background_registers(&mut self) {
         // Shift existing data
-        self.state.bg_shift_high = (self.state.bg_shift_high << 8) | (self.state.bg_next_tile_msb as Word);
-        self.state.bg_shift_low = (self.state.bg_shift_low << 8) | (self.state.bg_next_tile_lsb as Word);
+        self.timing_state.bg_pipeline.shift_high = 
+            (self.timing_state.bg_pipeline.shift_high << 8) | 
+            (self.timing_state.bg_pipeline.pattern_high_latch as Word);
+        self.timing_state.bg_pipeline.shift_low = 
+            (self.timing_state.bg_pipeline.shift_low << 8) | 
+            (self.timing_state.bg_pipeline.pattern_low_latch as Word);
         
         // Load attribute data
-        let attr_bit0 = (self.state.bg_next_tile_attr & 0x01) as Word;
-        let attr_bit1 = (self.state.bg_next_tile_attr & 0x02) as Word >> 1;
+        let attr_bit0 = (self.timing_state.bg_pipeline.attribute_latch & 0x01) as Word;
+        let attr_bit1 = (self.timing_state.bg_pipeline.attribute_latch & 0x02) as Word >> 1;
         
-        self.state.bg_attr_shift_high = (self.state.bg_attr_shift_high << 8) | (attr_bit1 << 7);
-        self.state.bg_attr_shift_low = (self.state.bg_attr_shift_low << 8) | (attr_bit0 << 7);
+        self.timing_state.bg_pipeline.attr_shift_high = 
+            (self.timing_state.bg_pipeline.attr_shift_high << 8) | (attr_bit1 << 7);
+        self.timing_state.bg_pipeline.attr_shift_low = 
+            (self.timing_state.bg_pipeline.attr_shift_low << 8) | (attr_bit0 << 7);
     }
     
     /// Shift background registers
     fn shift_background_registers(&mut self) {
         // Shift registers are already shifted during loading
-    }
-    
-    /// Get nametable address
-    fn get_nametable_address(&self) -> RnesResult<Word> {
-        let base = 0x2000 + (self.state.v & 0x0C00);
-        let offset = self.state.v & 0x03FF;
-        Ok(base | offset)
-    }
-    
-    /// Get attribute address
-    fn get_attribute_address(&self) -> RnesResult<Word> {
-        let base = 0x23C0 + (self.state.v & 0x0C00);
-        let offset = ((self.state.v >> 4) & 0x38) | ((self.state.v >> 2) & 0x07);
-        Ok(base | offset)
-    }
-    
-    /// Get attribute shift
-    fn get_attribute_shift(&self) -> RnesResult<u8> {
-        let coarse_x = (self.state.v & 0x001F) >> 1;
-        let coarse_y = (self.state.v & 0x03E0) >> 6;
-        Ok((((coarse_y & 0x02) << 1) | (coarse_x & 0x02)) as u8)
-    }
-    
-    /// Get pattern address
-    fn get_pattern_address(&self, high: bool) -> RnesResult<Word> {
-        let pattern_table = if self.registers.ppuctrl & 0x10 != 0 { 0x1000 } else { 0x0000 };
-        let tile_id = self.state.bg_next_tile_id as Word;
-        let fine_y = (self.state.v & 0x7000) >> 12;
-        let offset = if high { 8 } else { 0 };
-        
-        Ok(pattern_table + (tile_id << 4) + fine_y + offset)
+        // This is a placeholder for any additional shifting logic
     }
     
     /// Increment scroll X
     fn increment_scroll_x(&mut self) {
-        if (self.state.v & 0x001F) == 31 {
-            self.state.v &= !0x001F;
-            self.state.v ^= 0x0400; // Toggle nametable
+        if (self.timing_state.v & 0x001F) == 31 {
+            self.timing_state.v &= !0x001F;
+            self.timing_state.v ^= 0x0400; // Toggle nametable
         } else {
-            self.state.v += 1;
+            self.timing_state.v += 1;
         }
     }
     
-    /// Check if background is enabled
-    fn is_background_enabled(&self) -> bool {
-        self.registers.ppumask & 0x08 != 0
-    }
-    
-    /// Check if sprites are enabled
-    fn is_sprites_enabled(&self) -> bool {
-        self.registers.ppumask & 0x10 != 0
-    }
-    
-    /// Render sprite scanline
+    /// Render sprite scanline (legacy method for compatibility)
     fn render_sprite_scanline(&mut self, scanline: usize) -> RnesResult<()> {
         // Clear sprite rendering state for the new scanline
-        self.state.sprite_rendering = SpriteRenderingState::default();
+        self.timing_state.sprite_pipeline = SpritePipeline::default();
         
         // Evaluate sprites for this scanline
         self.evaluate_sprites(scanline)?;
         
         // Render sprites in order of Y position
-        let sprites_to_render = self.state.sprite_rendering.sprites_on_scanline.clone();
+        let sprites_to_render = self.timing_state.sprite_pipeline.sprites_on_scanline.clone();
         for sprite in sprites_to_render {
             self.render_sprite(sprite, scanline)?;
         }
         
         // Check for sprite zero hit
-        if self.state.sprite_rendering.sprite_zero_on_scanline {
-            self.state.sprite_zero_hit = true;
+        if self.timing_state.sprite_pipeline.sprite_zero_hit {
+            self.timing_state.sprite_zero_hit = true;
         }
         
         // Check for sprite overflow
-        if self.state.sprite_rendering.sprite_overflow {
-            self.state.sprite_overflow = true;
+        if self.timing_state.sprite_pipeline.sprite_overflow {
+            self.timing_state.sprite_overflow = true;
         }
         
         Ok(())
     }
     
-    /// Evaluate sprites for current scanline
+    /// Evaluate sprites for current scanline (legacy method for compatibility)
     fn evaluate_sprites(&mut self, scanline: usize) -> RnesResult<()> {
         let sprite_height = if self.registers.ppuctrl & 0x20 != 0 { 16 } else { 8 };
         
@@ -542,16 +683,16 @@ impl Ppu {
                     x: sprite_x,
                 };
                 
-                self.state.sprite_rendering.sprites_on_scanline.push(sprite);
+                self.timing_state.sprite_pipeline.sprites_on_scanline.push(sprite);
                 
                 // Check for sprite zero hit
                 if i == 0 {
-                    self.state.sprite_rendering.sprite_zero_on_scanline = true;
+                    self.timing_state.sprite_pipeline.sprite_zero_hit = true;
                 }
                 
                 // Check for sprite overflow (more than 8 sprites on scanline)
-                if self.state.sprite_rendering.sprites_on_scanline.len() > 8 {
-                    self.state.sprite_rendering.sprite_overflow = true;
+                if self.timing_state.sprite_pipeline.sprites_on_scanline.len() > 8 {
+                    self.timing_state.sprite_pipeline.sprite_overflow = true;
                     break; // Only first 8 sprites are rendered
                 }
             }
@@ -560,7 +701,7 @@ impl Ppu {
         Ok(())
     }
     
-    /// Render a single sprite
+    /// Render a single sprite (legacy method for compatibility)
     fn render_sprite(&mut self, sprite: Sprite, scanline: usize) -> RnesResult<()> {
         let sprite_y_pos = sprite.y as usize;
         let sprite_height = if self.registers.ppuctrl & 0x20 != 0 { 16 } else { 8 };
@@ -710,22 +851,22 @@ impl Ppu {
     
     /// Check if VBlank is active
     pub fn vblank(&self) -> bool {
-        self.state.vblank
+        self.timing_state.vblank
     }
     
     /// Get current scanline
     pub fn scanline(&self) -> Scanline {
-        self.state.scanline
+        self.timing_state.scanline
     }
     
     /// Get current dot
     pub fn dot(&self) -> Dot {
-        self.state.dot
+        self.timing_state.dot
     }
     
     /// Get frame count
     pub fn frame_count(&self) -> u64 {
-        self.state.frame_count
+        self.timing_state.frame_count
     }
     
     /// Debug: Get PPU register values
@@ -739,28 +880,28 @@ impl Ppu {
     }
     
     /// Get PPU state
-    pub fn state(&self) -> &PpuState {
-        &self.state
+    pub fn state(&self) -> &PpuTimingState {
+        &self.timing_state
     }
     
     /// Set scanline
     pub fn set_scanline(&mut self, scanline: Scanline) {
-        self.state.scanline = scanline;
+        self.timing_state.scanline = scanline;
     }
     
     /// Set dot
     pub fn set_dot(&mut self, dot: Dot) {
-        self.state.dot = dot;
+        self.timing_state.dot = dot;
     }
     
     /// Set frame count
     pub fn set_frame(&mut self, frame: u32) {
-        self.state.frame_count = frame as u64;
+        self.timing_state.frame_count = frame as u64;
     }
     
     /// Set VBlank state
     pub fn set_vblank(&mut self, vblank: bool) {
-        self.state.vblank = vblank;
+        self.timing_state.vblank = vblank;
     }
     
     /// Set OAM data
@@ -795,8 +936,8 @@ impl Ppu {
     }
     
     /// Debug: Get PPU internal state
-    pub fn debug_state(&self) -> &PpuState {
-        &self.state
+    pub fn debug_state(&self) -> &PpuTimingState {
+        &self.timing_state
     }
     
     /// Debug: Check if background is enabled
@@ -811,7 +952,7 @@ impl Ppu {
                 // PPUSTATUS
                 let status = self.registers.ppustatus;
                 self.registers.ppustatus &= !0x80; // Clear VBlank flag
-                self.state.w = false; // Reset write toggle
+                self.timing_state.w = false; // Reset write toggle
                 Ok(status)
             }
             0x2004 => {
@@ -821,13 +962,13 @@ impl Ppu {
             }
             0x2007 => {
                 // PPUDATA
-                let value = self.read_vram(self.state.v)?;
+                let value = self.read_vram(self.timing_state.v)?;
                 
                 // Auto-increment address
                 if self.registers.ppuctrl & 0x04 != 0 {
-                    self.state.v += 32;
+                    self.timing_state.v += 32;
                 } else {
-                    self.state.v += 1;
+                    self.timing_state.v += 1;
                 }
                 
                 Ok(value)
@@ -842,7 +983,7 @@ impl Ppu {
             0x2000 => {
                 // PPUCTRL
                 self.registers.ppuctrl = value;
-                self.state.t = (self.state.t & 0xF3FF) | ((value as Word & 0x03) << 10);
+                self.timing_state.t = (self.timing_state.t & 0xF3FF) | ((value as Word & 0x03) << 10);
                 Ok(())
             }
             0x2001 => {
@@ -868,41 +1009,41 @@ impl Ppu {
             }
             0x2005 => {
                 // PPUSCROLL
-                if !self.state.w {
+                if !self.timing_state.w {
                     // First write: X scroll
-                    self.state.x = value & 0x07;
-                    self.state.t = (self.state.t & 0xFFE0) | ((value as Word >> 3) & 0x1F);
+                    self.timing_state.x = value & 0x07;
+                    self.timing_state.t = (self.timing_state.t & 0xFFE0) | ((value as Word >> 3) & 0x1F);
                 } else {
                     // Second write: Y scroll
-                    self.state.t = (self.state.t & 0x8C1F) | 
+                    self.timing_state.t = (self.timing_state.t & 0x8C1F) | 
                                   (((value as Word & 0x07) << 12) | 
                                    (((value as Word >> 3) & 0x1F) << 5));
                 }
-                self.state.w = !self.state.w;
+                self.timing_state.w = !self.timing_state.w;
                 Ok(())
             }
             0x2006 => {
                 // PPUADDR
-                if !self.state.w {
+                if !self.timing_state.w {
                     // First write: high byte
-                    self.state.t = (self.state.t & 0x00FF) | ((value as Word & 0x3F) << 8);
+                    self.timing_state.t = (self.timing_state.t & 0x00FF) | ((value as Word & 0x3F) << 8);
                 } else {
                     // Second write: low byte
-                    self.state.t = (self.state.t & 0xFF00) | value as Word;
-                    self.state.v = self.state.t;
+                    self.timing_state.t = (self.timing_state.t & 0xFF00) | value as Word;
+                    self.timing_state.v = self.timing_state.t;
                 }
-                self.state.w = !self.state.w;
+                self.timing_state.w = !self.timing_state.w;
                 Ok(())
             }
             0x2007 => {
                 // PPUDATA
-                self.write_vram(self.state.v, value)?;
+                self.write_vram(self.timing_state.v, value)?;
                 
                 // Auto-increment address
                 if self.registers.ppuctrl & 0x04 != 0 {
-                    self.state.v += 32;
+                    self.timing_state.v += 32;
                 } else {
-                    self.state.v += 1;
+                    self.timing_state.v += 1;
                 }
                 Ok(())
             }
@@ -932,6 +1073,123 @@ impl Ppu {
             }
             _ => Err(rnes_common::RnesError::MemoryAccess { address: addr })
         }
+    }
+    
+    /// Cached VRAM read for optimization
+    fn read_vram_cached(&mut self, addr: Word) -> RnesResult<Byte> {
+        // Check cache first
+        let cache_index = (addr & 0xFF) as usize;
+        if self.timing_state.cache_valid[cache_index] && 
+           self.timing_state.vram_cache[cache_index] != 0 {
+            return Ok(self.timing_state.vram_cache[cache_index]);
+        }
+        
+        // Read from VRAM
+        let value = self.read_vram(addr)?;
+        
+        // Update cache
+        self.timing_state.vram_cache[cache_index] = value;
+        self.timing_state.cache_valid[cache_index] = true;
+        self.timing_state.last_vram_access = addr;
+        
+        Ok(value)
+    }
+    
+    /// Get nametable address
+    fn get_nametable_address(&self) -> RnesResult<Word> {
+        let base = 0x2000 + (self.timing_state.v & 0x0C00);
+        let offset = self.timing_state.v & 0x03FF;
+        Ok(base | offset)
+    }
+    
+    /// Get attribute address
+    fn get_attribute_address(&self) -> RnesResult<Word> {
+        let base = 0x23C0 + (self.timing_state.v & 0x0C00);
+        let offset = ((self.timing_state.v >> 4) & 0x38) | ((self.timing_state.v >> 2) & 0x07);
+        Ok(base | offset)
+    }
+    
+    /// Get attribute shift
+    fn get_attribute_shift(&self) -> RnesResult<u8> {
+        let coarse_x = (self.timing_state.v & 0x001F) >> 1;
+        let coarse_y = (self.timing_state.v & 0x03E0) >> 6;
+        Ok((((coarse_y & 0x02) << 1) | (coarse_x & 0x02)) as u8)
+    }
+    
+    /// Get pattern address
+    fn get_pattern_address(&self, high: bool) -> RnesResult<Word> {
+        let pattern_table = if self.registers.ppuctrl & 0x10 != 0 { 0x1000 } else { 0x0000 };
+        let tile_id = self.timing_state.bg_pipeline.nametable_latch as Word;
+        let fine_y = (self.timing_state.v & 0x7000) >> 12;
+        let offset = if high { 8 } else { 0 };
+        
+        Ok(pattern_table + (tile_id << 4) + fine_y + offset)
+    }
+    
+    /// Check if background is enabled
+    fn is_background_enabled(&self) -> bool {
+        self.registers.ppumask & 0x08 != 0
+    }
+    
+    /// Check if sprites are enabled
+    fn is_sprites_enabled(&self) -> bool {
+        self.registers.ppumask & 0x10 != 0
+    }
+    
+    /// Get OAM DMA address (for testing)
+    pub fn oam_dma_addr(&self) -> Word {
+        self.oam_dma_addr
+    }
+    
+    /// Get current PPU phase
+    pub fn phase(&self) -> PpuPhase {
+        self.timing_state.phase
+    }
+    
+    /// Get background pipeline state
+    pub fn background_pipeline(&self) -> &BackgroundPipeline {
+        &self.timing_state.bg_pipeline
+    }
+    
+    /// Get sprite pipeline state
+    pub fn sprite_pipeline(&self) -> &SpritePipeline {
+        &self.timing_state.sprite_pipeline
+    }
+    
+    /// Check if rendering is enabled
+    pub fn rendering_enabled(&self) -> bool {
+        self.timing_state.rendering_enabled
+    }
+    
+    /// Check if background rendering is enabled
+    pub fn background_enabled(&self) -> bool {
+        self.timing_state.background_enabled
+    }
+    
+    /// Check if sprite rendering is enabled
+    pub fn sprites_enabled(&self) -> bool {
+        self.timing_state.sprites_enabled
+    }
+    
+    /// Get VRAM cache statistics
+    pub fn vram_cache_stats(&self) -> (usize, usize) {
+        let valid_entries = self.timing_state.cache_valid.iter().filter(|&&x| x).count();
+        (valid_entries, self.timing_state.vram_cache.len())
+    }
+    
+    /// Clear VRAM cache
+    pub fn clear_vram_cache(&mut self) {
+        self.timing_state.cache_valid.fill(false);
+    }
+    
+    /// Get timing optimization statistics
+    pub fn timing_stats(&self) -> (u64, PpuPhase, bool, bool) {
+        (
+            self.timing_state.frame_count,
+            self.timing_state.phase,
+            self.timing_state.rendering_enabled,
+            self.timing_state.background_enabled
+        )
     }
 }
 
@@ -998,7 +1256,7 @@ mod tests {
         let ppu = Ppu::new(Box::new(mapper));
         
         assert_eq!(ppu.oam_dma_active(), false);
-        assert_eq!(ppu.state.sprite_rendering.sprites_on_scanline.len(), 0);
+        assert_eq!(ppu.timing_state.sprite_pipeline.sprites_on_scanline.len(), 0);
     }
     
     #[test]
@@ -1023,6 +1281,8 @@ mod tests {
         
         ppu.start_oam_dma(0x02);
         assert!(ppu.oam_dma_active());
-        assert_eq!(ppu.state.oam_dma_addr, 0x0200);
+        assert_eq!(ppu.oam_dma_addr(), 0x0200);
     }
 }
+
+// Timing optimization types are already public

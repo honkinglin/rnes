@@ -291,7 +291,7 @@ impl Bus {
     }
     
     /// Debug: Get PPU state
-    pub fn debug_ppu_state(&self) -> Option<&rnes_ppu::PpuState> {
+    pub fn debug_ppu_state(&self) -> Option<&rnes_ppu::PpuTimingState> {
         self.ppu.as_ref().map(|ppu| ppu.debug_state())
     }
     
