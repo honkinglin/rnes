@@ -63,6 +63,10 @@ path = "apu_register_test.rs"
 name = "apu_integration_test"
 path = "apu_integration_test.rs"
 
+[[bin]]
+name = "m4_demo"
+path = "m4_demo.rs"
+
 [dependencies]
 rnes-core = { path = "../crates/core" }
 rnes-cartridge = { path = "../crates/cartridge" }

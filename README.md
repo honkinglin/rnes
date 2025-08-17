@@ -57,8 +57,8 @@ frontend/
 - [x] Mixing system
 - [x] Audio output
 
-### M4: Common Mappers
-- [ ] MMC1, UxROM, CNROM, AOROM
+### M4: Common Mappers ✅
+- [x] MMC1, UxROM, CNROM, AOROM
 - [ ] Save system
 
 ### M5: MMC3 + IRQ
@@ -104,12 +104,12 @@ cargo run --release -- path/to/rom.nes
 
 ## Supported Mappers
 
-- [ ] NROM (0)
-- [ ] MMC1 (1)
-- [ ] UxROM (2)
-- [ ] CNROM (3)
+- [x] NROM (0)
+- [x] MMC1 (1)
+- [x] UxROM (2)
+- [x] CNROM (3)
 - [ ] MMC3 (4)
-- [ ] AOROM (7)
+- [x] AOROM (7)
 
 ## Documentation
 
@@ -147,6 +147,10 @@ cargo test -p rnes-test-suite --test ppu_integration_tests -- --ignored
 # Run M2 integration tests (requires test ROMs)
 ./scripts/download_m2_test_roms.sh
 cargo test -p rnes-test-suite --test m2_integration_tests -- --ignored
+
+# Run M4 integration tests (requires test ROMs)
+./scripts/download_m4_test_roms.sh
+cargo test -p rnes-test-suite --test m4_integration_tests -- --ignored
 
 # Run APU integration tests (requires test ROMs)
 ./scripts/download_apu_test_roms.sh

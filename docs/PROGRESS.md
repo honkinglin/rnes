@@ -37,6 +37,7 @@
 - ✅ M1: PPU background rendering working
 - ✅ M2: Sprite rendering and input handling working
 - ✅ M3: APU audio system working
+- ✅ M4: Common mappers (MMC1, UxROM, CNROM, AOROM) working
 
 ### Known Issues
 - ⚠️ Integration tests show infinite loops (needs additional mapper support)
@@ -57,11 +58,12 @@
 - [x] Timing synchronization with CPU/PPU
 - [x] Volume and envelope control
 
-### M4: Additional Mappers
-- [ ] MMC1 (Mapper 1) implementation
-- [ ] UxROM (Mapper 2) implementation
-- [ ] CNROM (Mapper 3) implementation
-- [ ] MMC3 (Mapper 4) implementation
+### M4: Common Mappers ✅
+- [x] MMC1 (Mapper 1) implementation
+- [x] UxROM (Mapper 2) implementation
+- [x] CNROM (Mapper 3) implementation
+- [x] AOROM (Mapper 7) implementation
+- [ ] Save system implementation
 
 ### M5: Frontend and Polish
 - [ ] Native frontend completion
