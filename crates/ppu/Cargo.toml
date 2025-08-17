@@ -9,6 +9,8 @@ repository.workspace = true
 
 [dependencies]
 rnes-common = { path = "../common" }
+rnes-mappers = { path = "../mappers" }
+rnes-cartridge = { path = "../cartridge" }
 serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 

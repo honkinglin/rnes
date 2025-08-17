@@ -16,7 +16,7 @@ pub type Scanline = i32;
 pub type Dot = u32;
 
 /// Pixel color (RGBA)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Pixel {
     pub r: u8,
     pub g: u8,

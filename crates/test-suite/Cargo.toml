@@ -12,6 +12,7 @@ rnes-cpu6502 = { path = "../cpu6502" }
 rnes-common = { path = "../common" }
 rnes-core = { path = "../core" }
 rnes-cartridge = { path = "../cartridge" }
+rnes-ppu = { path = "../ppu" }
 
 # Test dependencies
 serde = { workspace = true }
@@ -22,6 +23,10 @@ tracing-subscriber = { workspace = true }
 [[test]]
 name = "cpu_integration_tests"
 path = "src/cpu_integration_tests.rs"
+
+[[test]]
+name = "ppu_integration_tests"
+path = "src/ppu_integration_tests.rs"
 
 [[test]]
 name = "cpu_test_runner"
