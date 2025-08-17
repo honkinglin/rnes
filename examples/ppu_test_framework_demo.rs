@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test basic PPU functionality without ROM
     println!("🧪 Testing PPU Test Runner Creation");
-    let runner = PpuTestRunner::new()
+    let _runner = PpuTestRunner::new()
         .with_max_cycles(100000)
         .with_max_frames(100);
     

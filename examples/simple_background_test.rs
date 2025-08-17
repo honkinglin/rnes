@@ -123,7 +123,7 @@ fn create_simple_background_rom() -> Vec<u8> {
     offset += 1;
     
     // Write some tile data to nametable (write tile 0x01 to first few positions)
-    for i in 0..16 {
+    for _i in 0..16 {
         prg_rom[offset] = 0xA9; // LDA immediate
         offset += 1;
         prg_rom[offset] = 0x01; // Tile ID 0x01
@@ -142,7 +142,6 @@ fn create_simple_background_rom() -> Vec<u8> {
     prg_rom[offset] = 0x00; // Low byte
     offset += 1;
     prg_rom[offset] = 0x80; // High byte (infinite loop)
-    offset += 1;
     
     // Reset vector points to our program
     prg_rom[0x3FFC] = 0x00; // Reset vector low

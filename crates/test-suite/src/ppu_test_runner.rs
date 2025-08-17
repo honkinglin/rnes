@@ -177,7 +177,7 @@ impl PpuTestRunner {
     }
     
     /// Get PPU state
-    pub fn ppu_state(&self) -> &rnes_ppu::PpuState {
+    pub fn ppu_state(&self) -> &rnes_ppu::PpuTimingState {
         self.emulator.ppu().state()
     }
 }

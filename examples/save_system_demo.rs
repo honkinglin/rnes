@@ -1,6 +1,6 @@
 use rnes_core::Emulator;
 use rnes_cartridge::Cartridge;
-use rnes_common::Pixel;
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("RNES Save System Demo: Battery Backup and Save States");

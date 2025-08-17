@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nRunning emulator step by step...");
     for step in 0..20 {
         match emulator.step() {
-            Ok(cycles) => {
+            Ok(_cycles) => {
                 let state = emulator.get_state();
                 println!("Step {}: CPU cycles: {}, PC: 0x{:04X}", 
                         step, state.cpu_cycles, emulator.cpu.pc);

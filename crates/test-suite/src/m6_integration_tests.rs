@@ -759,7 +759,7 @@ fn test_m6_basic() {
     assert!(!debugger.step_mode);
     
     // Test save system creation
-    let save_system = rnes_common::SaveSystem::new();
+    let _save_system = rnes_common::SaveSystem::new();
     // Note: We can't access save_dir directly as it's private, but we can test the public API
     
     println!("✓ M6 basic tests passed");

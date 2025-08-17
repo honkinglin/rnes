@@ -252,7 +252,7 @@ impl Emulator {
     }
     
     /// Debug: Get PPU state
-    pub fn debug_ppu_state(&self) -> Option<&rnes_ppu::PpuState> {
+    pub fn debug_ppu_state(&self) -> Option<&rnes_ppu::PpuTimingState> {
         self.bus.debug_ppu_state()
     }
     
