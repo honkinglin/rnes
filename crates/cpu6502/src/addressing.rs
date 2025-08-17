@@ -43,46 +43,46 @@ impl AddressingMode {
                 Ok(cpu.pc)
             }
             AddressingMode::ZeroPage => {
-                let addr = memory.read_byte(cpu.pc)? as Word;
+                let addr = memory.read_byte(cpu.pc + 1)? as Word;
                 Ok(addr)
             }
             AddressingMode::ZeroPageX => {
-                let addr = (memory.read_byte(cpu.pc)? as Word + cpu.x as Word) & 0xFF;
+                let addr = (memory.read_byte(cpu.pc + 1)? as Word + cpu.x as Word) & 0xFF;
                 Ok(addr)
             }
             AddressingMode::ZeroPageY => {
-                let addr = (memory.read_byte(cpu.pc)? as Word + cpu.y as Word) & 0xFF;
+                let addr = (memory.read_byte(cpu.pc + 1)? as Word + cpu.y as Word) & 0xFF;
                 Ok(addr)
             }
             AddressingMode::Relative => {
-                let offset = memory.read_byte(cpu.pc)? as i8 as i16;
-                let addr = (cpu.pc as i16 + 1 + offset) as Word;
+                let offset = memory.read_byte(cpu.pc + 1)? as i8 as i16;
+                let addr = (cpu.pc as i16 + 2 + offset) as Word;
                 Ok(addr)
             }
             AddressingMode::Absolute => {
-                let addr = memory.read_word(cpu.pc)?;
+                let addr = memory.read_word(cpu.pc + 1)?;
                 Ok(addr)
             }
             AddressingMode::AbsoluteX => {
-                let addr = memory.read_word(cpu.pc)? + cpu.x as Word;
+                let addr = memory.read_word(cpu.pc + 1)? + cpu.x as Word;
                 Ok(addr)
             }
             AddressingMode::AbsoluteY => {
-                let addr = memory.read_word(cpu.pc)? + cpu.y as Word;
+                let addr = memory.read_word(cpu.pc + 1)? + cpu.y as Word;
                 Ok(addr)
             }
             AddressingMode::Indirect => {
-                let addr = memory.read_word(cpu.pc)?;
+                let addr = memory.read_word(cpu.pc + 1)?;
                 let indirect_addr = memory.read_word(addr)?;
                 Ok(indirect_addr)
             }
             AddressingMode::IndirectX => {
-                let zp_addr = (memory.read_byte(cpu.pc)? as Word + cpu.x as Word) & 0xFF;
+                let zp_addr = (memory.read_byte(cpu.pc + 1)? as Word + cpu.x as Word) & 0xFF;
                 let addr = memory.read_word(zp_addr)?;
                 Ok(addr)
             }
             AddressingMode::IndirectY => {
-                let zp_addr = memory.read_byte(cpu.pc)? as Word;
+                let zp_addr = memory.read_byte(cpu.pc + 1)? as Word;
                 let addr = memory.read_word(zp_addr)? + cpu.y as Word;
                 Ok(addr)
             }
@@ -96,7 +96,7 @@ impl AddressingMode {
                 Err(rnes_common::RnesError::Cpu("Implied addressing mode has no operand".to_string()))
             }
             AddressingMode::Immediate => {
-                memory.read_byte(cpu.pc)
+                memory.read_byte(cpu.pc + 1)
             }
             _ => {
                 let addr = self.get_address(cpu, memory)?;
