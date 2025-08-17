@@ -44,3 +44,7 @@ path = "src/apu_test_runner.rs"
 [[test]]
 name = "m2_integration_tests"
 path = "src/m2_integration_tests.rs"
+
+[[test]]
+name = "m4_integration_tests"
+path = "src/m4_integration_tests.rs"

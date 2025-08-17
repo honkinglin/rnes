@@ -44,6 +44,19 @@ impl Pixel {
     pub fn to_rgb(&self) -> u32 {
         ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
     }
+    
+    pub fn to_u32(&self) -> u32 {
+        ((self.r as u32) << 24) | ((self.g as u32) << 16) | ((self.b as u32) << 8) | (self.a as u32)
+    }
+    
+    pub fn from_u32(value: u32) -> Self {
+        Self {
+            r: ((value >> 24) & 0xFF) as u8,
+            g: ((value >> 16) & 0xFF) as u8,
+            b: ((value >> 8) & 0xFF) as u8,
+            a: (value & 0xFF) as u8,
+        }
+    }
 }
 
 /// Audio sample
