@@ -36,10 +36,10 @@
 - ✅ Test ROM loading and execution
 - ✅ M1: PPU background rendering working
 - ✅ M2: Sprite rendering and input handling working
+- ✅ M3: APU audio system working
 
 ### Known Issues
-- ⚠️ Integration tests show infinite loops (needs PPU/APU support)
-- ⚠️ Missing APU implementation
+- ⚠️ Integration tests show infinite loops (needs additional mapper support)
 - ⚠️ Advanced Mapper implementations needed
 - ⚠️ Frontend implementation incomplete
 
@@ -51,11 +51,11 @@
 - [x] Input handling (keyboard/gamepad)
 - [x] DMA operations for sprite data
 
-### M3: APU Audio System
-- [ ] 5 audio channel implementations
-- [ ] Audio mixing and output
-- [ ] Timing synchronization with CPU/PPU
-- [ ] Volume and envelope control
+### M3: APU Audio System ✅
+- [x] 5 audio channel implementations
+- [x] Audio mixing and output
+- [x] Timing synchronization with CPU/PPU
+- [x] Volume and envelope control
 
 ### M4: Additional Mappers
 - [ ] MMC1 (Mapper 1) implementation

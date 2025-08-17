@@ -12,6 +12,7 @@ rnes-common = { path = "../common" }
 rnes-cpu6502 = { path = "../cpu6502" }
 rnes-cartridge = { path = "../cartridge" }
 rnes-ppu = { path = "../ppu" }
+rnes-apu = { path = "../apu" }
 rnes-mappers = { path = "../mappers" }
 serde = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }

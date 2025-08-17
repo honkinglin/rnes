@@ -52,10 +52,10 @@ frontend/
 - [x] Input handling
 - [x] Sprite 0 hit
 
-### M3: APU Audio
-- [ ] Audio channel implementation
-- [ ] Mixing system
-- [ ] Audio output
+### M3: APU Audio ✅
+- [x] Audio channel implementation
+- [x] Mixing system
+- [x] Audio output
 
 ### M4: Common Mappers
 - [ ] MMC1, UxROM, CNROM, AOROM
@@ -147,6 +147,10 @@ cargo test -p rnes-test-suite --test ppu_integration_tests -- --ignored
 # Run M2 integration tests (requires test ROMs)
 ./scripts/download_m2_test_roms.sh
 cargo test -p rnes-test-suite --test m2_integration_tests -- --ignored
+
+# Run APU integration tests (requires test ROMs)
+./scripts/download_apu_test_roms.sh
+cargo test -p rnes-test-suite --test apu_integration_tests -- --ignored
 
 # Run benchmarks
 cargo bench

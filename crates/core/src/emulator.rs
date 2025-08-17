@@ -56,6 +56,12 @@ impl Emulator {
             self.state.ppu_dot = ppu.dot();
         }
         
+        // Handle APU IRQ
+        if self.bus.dmc_irq_pending() {
+            self.cpu.request_irq();
+            self.bus.clear_dmc_irq();
+        }
+        
         Ok(cycles)
     }
     
@@ -188,6 +194,21 @@ impl Emulator {
     /// Get bus instance
     pub fn bus(&self) -> &crate::Bus {
         &self.bus
+    }
+    
+    /// Get audio samples
+    pub fn get_audio_samples(&mut self) -> Vec<rnes_common::AudioSample> {
+        self.bus.get_audio_samples()
+    }
+    
+    /// Get APU instance
+    pub fn apu(&self) -> &rnes_apu::Apu {
+        self.bus.apu()
+    }
+    
+    /// Get mutable APU instance
+    pub fn apu_mut(&mut self) -> &mut rnes_apu::Apu {
+        self.bus.apu_mut()
     }
 }
 
