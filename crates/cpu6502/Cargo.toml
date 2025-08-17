@@ -1,0 +1,17 @@
+[package]
+name = "rnes-cpu6502"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "6502 CPU implementation for RNES"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rnes-common = { path = "../common" }
+serde = { workspace = true, features = ["derive"] }
+bitflags = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

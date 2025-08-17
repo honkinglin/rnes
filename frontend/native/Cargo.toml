@@ -1,0 +1,30 @@
+[package]
+name = "rnes-native"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Native frontend for RNES"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rnes-common = { path = "../../crates/common" }
+rnes-core = { path = "../../crates/core" }
+rnes-cartridge = { path = "../../crates/cartridge" }
+rnes-cpu6502 = { path = "../../crates/cpu6502" }
+
+# Graphics and window
+wgpu = { workspace = true }
+winit = { workspace = true }
+
+# Audio
+cpal = { workspace = true }
+
+# Input
+gilrs = { workspace = true }
+
+# Others
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { version = "4.0", features = ["derive"] }

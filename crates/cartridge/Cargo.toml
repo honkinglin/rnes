@@ -1,0 +1,17 @@
+[package]
+name = "rnes-cartridge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Cartridge and ROM management for RNES"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rnes-common = { path = "../common" }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

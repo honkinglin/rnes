@@ -1,0 +1,18 @@
+[package]
+name = "rnes-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Core emulator logic and bus for RNES"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rnes-common = { path = "../common" }
+rnes-cpu6502 = { path = "../cpu6502" }
+rnes-cartridge = { path = "../cartridge" }
+serde = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

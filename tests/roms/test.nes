@@ -1,0 +1,3 @@
+# This is a simple test ROM file
+# Since we cannot directly create binary files, this is just a placeholder
+# In actual use, a real NES ROM file needs to be created

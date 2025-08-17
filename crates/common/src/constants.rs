@@ -1,0 +1,51 @@
+// CPU related constants
+pub const CPU_CLOCK_RATE: u32 = 1_789_773; // Hz
+pub const CPU_CYCLES_PER_FRAME: u32 = 29_780; // NTSC
+
+// PPU related constants
+pub const PPU_CLOCK_RATE: u32 = CPU_CLOCK_RATE * 3; // PPU clock is 3x CPU clock
+pub const SCREEN_WIDTH: usize = 256;
+pub const SCREEN_HEIGHT: usize = 240;
+pub const VISIBLE_SCANLINES: usize = 240;
+pub const TOTAL_SCANLINES: usize = 262; // NTSC
+pub const DOTS_PER_SCANLINE: usize = 341;
+
+// Memory mapping
+pub const RAM_SIZE: usize = 0x800; // 2KB
+pub const RAM_MIRROR_SIZE: usize = 0x800; // Mirror region
+pub const PPU_REGISTERS_START: u16 = 0x2000;
+pub const PPU_REGISTERS_END: u16 = 0x2007;
+pub const APU_REGISTERS_START: u16 = 0x4000;
+pub const APU_REGISTERS_END: u16 = 0x401F;
+pub const CONTROLLER_REGISTERS_START: u16 = 0x4016;
+pub const CONTROLLER_REGISTERS_END: u16 = 0x4017;
+
+// PPU memory mapping
+pub const PPU_PATTERN_TABLE_0: u16 = 0x0000;
+pub const PPU_PATTERN_TABLE_1: u16 = 0x1000;
+pub const PPU_NAME_TABLE_0: u16 = 0x2000;
+pub const PPU_NAME_TABLE_1: u16 = 0x2400;
+pub const PPU_NAME_TABLE_2: u16 = 0x2800;
+pub const PPU_NAME_TABLE_3: u16 = 0x2C00;
+pub const PPU_ATTRIBUTE_TABLE_0: u16 = 0x23C0;
+pub const PPU_ATTRIBUTE_TABLE_1: u16 = 0x27C0;
+pub const PPU_ATTRIBUTE_TABLE_2: u16 = 0x2BC0;
+pub const PPU_ATTRIBUTE_TABLE_3: u16 = 0x2FC0;
+pub const PPU_PALETTE_RAM: u16 = 0x3F00;
+pub const PPU_PALETTE_RAM_SIZE: usize = 32;
+
+// Audio related constants
+pub const AUDIO_SAMPLE_RATE: u32 = 44_100; // Hz
+pub const AUDIO_BUFFER_SIZE: usize = 1024;
+
+// Palette colors (NTSC)
+pub const NES_PALETTE: [u32; 64] = [
+    0x545454, 0x001E74, 0x081090, 0x300088, 0x440064, 0x5C0030, 0x540400, 0x3C1800,
+    0x202A00, 0x083A00, 0x004000, 0x004000, 0x003C00, 0x00323C, 0x000000, 0x000000,
+    0x989698, 0x084CC4, 0x3032EC, 0x5C1EE4, 0x8814B0, 0xA01464, 0x982220, 0x783C00,
+    0x545A00, 0x287200, 0x087C00, 0x007628, 0x006678, 0x000000, 0x000000, 0x000000,
+    0xECEEEC, 0x4C9AEC, 0x787CEC, 0xB062EC, 0xE454EC, 0xEC58B4, 0xEC6A64, 0xD48820,
+    0xA0AA00, 0x74C400, 0x4CD020, 0x38CC6C, 0x38B4CC, 0x3C3C3C, 0x000000, 0x000000,
+    0xECEEEC, 0xA8CCEC, 0xBCBCEC, 0xD4B2EC, 0xECAEEC, 0xECAED4, 0xECC4B0, 0xE4C490,
+    0xCCD278, 0xB4DE78, 0xA8E290, 0x98E2B4, 0xA0D6D4, 0xA0A2A0, 0x000000, 0x000000,
+];

@@ -1,0 +1,16 @@
+[package]
+name = "rnes-apu"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "APU implementation for RNES"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rnes-common = { path = "../common" }
+serde = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
