@@ -1675,6 +1675,7 @@ name = "rnes-core"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "rnes-apu",
  "rnes-cartridge",
  "rnes-common",
  "rnes-cpu6502",
@@ -1703,6 +1704,7 @@ dependencies = [
  "rnes-common",
  "rnes-core",
  "rnes-test-suite",
+ "tracing-subscriber",
 ]
 
 [[package]]

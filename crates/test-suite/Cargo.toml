@@ -26,12 +26,20 @@ name = "cpu_integration_tests"
 path = "src/cpu_integration_tests.rs"
 
 [[test]]
+name = "apu_integration_tests"
+path = "src/apu_integration_tests.rs"
+
+[[test]]
 name = "ppu_integration_tests"
 path = "src/ppu_integration_tests.rs"
 
 [[test]]
 name = "cpu_test_runner"
 path = "src/cpu_test_runner.rs"
+
+[[test]]
+name = "apu_test_runner"
+path = "src/apu_test_runner.rs"
 
 [[test]]
 name = "m2_integration_tests"

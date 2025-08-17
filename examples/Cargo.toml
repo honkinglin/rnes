@@ -47,8 +47,25 @@ path = "reset_vector_test.rs"
 name = "ppu_test_framework_demo"
 path = "ppu_test_framework_demo.rs"
 
+[[bin]]
+name = "apu_demo"
+path = "apu_demo.rs"
+
+[[bin]]
+name = "simple_apu_test"
+path = "simple_apu_test.rs"
+
+[[bin]]
+name = "apu_register_test"
+path = "apu_register_test.rs"
+
+[[bin]]
+name = "apu_integration_test"
+path = "apu_integration_test.rs"
+
 [dependencies]
 rnes-core = { path = "../crates/core" }
 rnes-cartridge = { path = "../crates/cartridge" }
 rnes-common = { path = "../crates/common" }
 rnes-test-suite = { path = "../crates/test-suite" }
+tracing-subscriber = "0.3"

@@ -2,11 +2,13 @@ use rnes_common::{Byte, Word, RnesResult, RnesError, RAM_SIZE, MemoryAccess};
 use rnes_cpu6502::Cpu;
 use rnes_cartridge::Cartridge;
 use rnes_ppu::Ppu;
+use rnes_apu::Apu;
 
 /// System bus
 pub struct Bus {
     pub cartridge: Option<Cartridge>,
     pub ppu: Option<Ppu>,
+    pub apu: Option<Apu>,
     pub ram: [Byte; RAM_SIZE],
     pub controller1: rnes_common::ControllerState,
     pub controller2: rnes_common::ControllerState,
@@ -18,6 +20,7 @@ impl Bus {
         Self {
             cartridge: None,
             ppu: None,
+            apu: None,
             ram: [0; RAM_SIZE],
             controller1: rnes_common::ControllerState::default(),
             controller2: rnes_common::ControllerState::default(),
@@ -28,11 +31,13 @@ impl Bus {
     pub fn insert_cartridge(&mut self, cartridge: Cartridge) -> RnesResult<()> {
         self.cartridge = Some(cartridge.clone());
         
-        // Create mapper and PPU
+        // Create mapper, PPU, and APU
         let mapper = rnes_mappers::create_mapper(cartridge)?;
         let ppu = Ppu::new(mapper);
+        let apu = Apu::new();
         
         self.ppu = Some(ppu);
+        self.apu = Some(apu);
         self.reset()?;
         Ok(())
     }
@@ -71,6 +76,14 @@ impl Bus {
             // APU and I/O registers (0x4000-0x401F)
             0x4000..=0x401F => {
                 match addr {
+                    0x4015 => {
+                        // APU status
+                        if let Some(ref apu) = self.apu {
+                            apu.read_register(addr)
+                        } else {
+                            Ok(0)
+                        }
+                    }
                     0x4016 => {
                         // Controller 1 state
                         let mut value = 0;
@@ -97,7 +110,14 @@ impl Bus {
                         if self.controller2.right { value |= 0x80; }
                         Ok(value)
                     }
-                    _ => Ok(0), // Other registers return 0 for now
+                    _ => {
+                        // APU registers
+                        if let Some(ref apu) = self.apu {
+                            apu.read_register(addr)
+                        } else {
+                            Ok(0)
+                        }
+                    }
                 }
             }
             
@@ -153,15 +173,35 @@ impl Bus {
                         }
                         Ok(())
                     }
+                    0x4015 => {
+                        // APU status
+                        if let Some(ref mut apu) = self.apu {
+                            apu.write_register(addr, value)
+                        } else {
+                            Ok(())
+                        }
+                    }
                     0x4016 => {
                         // Controller status register
                         tracing::debug!("Controller status write: 0x{:02X}", value);
                         Ok(())
                     }
+                    0x4017 => {
+                        // Frame counter
+                        if let Some(ref mut apu) = self.apu {
+                            apu.write_register(addr, value)
+                        } else {
+                            Ok(())
+                        }
+                    }
                     _ => {
-                        // Ignore other registers for now
-                        tracing::debug!("I/O write: 0x{:04X} = 0x{:02X}", addr, value);
-                        Ok(())
+                        // APU registers
+                        if let Some(ref mut apu) = self.apu {
+                            apu.write_register(addr, value)
+                        } else {
+                            tracing::debug!("APU write: 0x{:04X} = 0x{:02X}", addr, value);
+                            Ok(())
+                        }
                     }
                 }
             }
@@ -216,6 +256,13 @@ impl Bus {
             }
         }
         
+        // Step APU (1x CPU clock)
+        if let Some(ref mut apu) = self.apu {
+            for _ in 0..cycles {
+                apu.step()?;
+            }
+        }
+        
         Ok(cycles)
     }
     
@@ -252,6 +299,37 @@ impl Bus {
     /// Get mutable PPU instance
     pub fn ppu_mut(&mut self) -> &mut rnes_ppu::Ppu {
         self.ppu.as_mut().expect("PPU not initialized")
+    }
+    
+    /// Get APU instance
+    pub fn apu(&self) -> &rnes_apu::Apu {
+        self.apu.as_ref().expect("APU not initialized")
+    }
+    
+    /// Get mutable APU instance
+    pub fn apu_mut(&mut self) -> &mut rnes_apu::Apu {
+        self.apu.as_mut().expect("APU not initialized")
+    }
+    
+    /// Get audio samples from APU
+    pub fn get_audio_samples(&mut self) -> Vec<rnes_common::AudioSample> {
+        self.apu.as_mut()
+            .map(|apu| apu.get_samples())
+            .unwrap_or_default()
+    }
+    
+    /// Check if DMC IRQ is pending
+    pub fn dmc_irq_pending(&self) -> bool {
+        self.apu.as_ref()
+            .map(|apu| apu.dmc_irq_pending())
+            .unwrap_or(false)
+    }
+    
+    /// Clear DMC IRQ
+    pub fn clear_dmc_irq(&mut self) {
+        if let Some(ref mut apu) = self.apu {
+            apu.clear_dmc_irq();
+        }
     }
 }
 
