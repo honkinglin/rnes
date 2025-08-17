@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNES Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 RNES</h1>
+        <p>NES Emulator in Rust + WebAssembly</p>
+        <div class="status">
+            <h3>Frontend Status</h3>
+            <p id="status">Loading...</p>
+        </div>
+        <div class="status">
+            <h3>Features</h3>
+            <ul style="text-align: left; display: inline-block;">
+                <li>✅ Modern Vite-based frontend</li>
+                <li>✅ Responsive design</li>
+                <li>✅ Drag & drop file handling</li>
+                <li>✅ Beautiful UI with animations</li>
+                <li>🔄 WASM integration (pending)</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('status').textContent = 'Frontend loaded successfully!';
+        console.log('RNES Web Frontend test page loaded!');
+    </script>
+</body>
+</html>

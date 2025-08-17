@@ -72,7 +72,7 @@ frontend/
 
 ### M7: Accuracy & Polish
 - [ ] PPU timing optimization
-- [ ] Web frontend
+- [x] Web frontend
 - [ ] Performance optimization
 
 ## Building and Running
@@ -108,7 +108,7 @@ cargo run --release -- path/to/rom.nes
 - [x] MMC1 (1)
 - [x] UxROM (2)
 - [x] CNROM (3)
-- [ ] MMC3 (4)
+- [x] MMC3 (4)
 - [x] AOROM (7)
 
 ## Documentation

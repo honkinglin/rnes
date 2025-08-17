@@ -9,6 +9,7 @@ members = [
     "crates/common",
     "crates/test-suite",
     "frontend/native",
+    "frontend/web",
     "examples",
 ]
 

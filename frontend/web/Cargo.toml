@@ -1,0 +1,36 @@
+[package]
+name = "rnes-web"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rnes-core = { path = "../../crates/core" }
+rnes-common = { path = "../../crates/common" }
+rnes-cartridge = { path = "../../crates/cartridge" }
+rnes-apu = { path = "../../crates/apu" }
+tracing = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Element",
+    "HtmlElement",
+    "Node",
+    "Window",
+    "HtmlCanvasElement",
+    "console",
+] }
+console_error_panic_hook = "0.1"
+tracing-wasm = "0.2"
+getrandom = { version = "0.2", features = ["js"] }
+wasm-timer = "0.2"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
