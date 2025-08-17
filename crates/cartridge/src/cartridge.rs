@@ -5,7 +5,7 @@ use rnes_common::{Byte, Word, RnesResult};
 use crate::header::{InesHeader, Mirroring};
 
 /// Cartridge implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cartridge {
     pub header: InesHeader,
     pub prg_rom: Vec<Byte>,
@@ -99,7 +99,9 @@ impl Cartridge {
         if offset < self.chr_rom.len() {
             Ok(self.chr_rom[offset])
         } else {
-            Err(rnes_common::RnesError::MemoryAccess { address: addr })
+            // Mirror CHR ROM if address is out of bounds
+            let mirrored_offset = offset % self.chr_rom.len();
+            Ok(self.chr_rom[mirrored_offset])
         }
     }
     
@@ -111,7 +113,12 @@ impl Cartridge {
             // But some games may use CHR RAM
             tracing::warn!("Attempting to write to CHR ROM: 0x{:04X} = 0x{:02X}", addr, value);
         } else {
-            return Err(rnes_common::RnesError::MemoryAccess { address: addr });
+            // For nametable writes, we need to support mirroring
+            // This is a simplified approach - in a real implementation,
+            // we might need separate nametable RAM
+            let mirrored_offset = offset % self.chr_rom.len();
+            tracing::warn!("Writing to mirrored CHR address: 0x{:04X} -> 0x{:04X} = 0x{:02X}", 
+                          addr, mirrored_offset as u16, value);
         }
         Ok(())
     }

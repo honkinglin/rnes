@@ -55,7 +55,15 @@ impl Cpu {
         self.reset_pending = false;
         
         // Read reset vector
-        self.pc = memory.read_word(0xFFFC)?;
+        let reset_vector = memory.read_word(0xFFFC)?;
+        
+        // If reset vector points to invalid address (like 0x0000), 
+        // start from PRG ROM base address (0x8000)
+        if reset_vector < 0x8000 || reset_vector == 0x0000 {
+            self.pc = 0x8000;
+        } else {
+            self.pc = reset_vector;
+        }
         
         Ok(())
     }

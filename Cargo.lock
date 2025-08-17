@@ -1678,6 +1678,8 @@ dependencies = [
  "rnes-cartridge",
  "rnes-common",
  "rnes-cpu6502",
+ "rnes-mappers",
+ "rnes-ppu",
  "serde",
  "tracing",
 ]
@@ -1694,10 +1696,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "rnes-examples"
+version = "0.1.0"
+dependencies = [
+ "rnes-cartridge",
+ "rnes-common",
+ "rnes-core",
+ "rnes-test-suite",
+]
+
+[[package]]
 name = "rnes-mappers"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "rnes-cartridge",
  "rnes-common",
  "serde",
  "tracing",
@@ -1726,7 +1739,9 @@ name = "rnes-ppu"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "rnes-cartridge",
  "rnes-common",
+ "rnes-mappers",
  "serde",
  "tracing",
 ]
@@ -1740,6 +1755,7 @@ dependencies = [
  "rnes-common",
  "rnes-core",
  "rnes-cpu6502",
+ "rnes-ppu",
  "serde",
  "tracing",
  "tracing-subscriber",

@@ -33,6 +33,9 @@ impl Emulator {
     pub fn reset(&mut self) -> RnesResult<()> {
         self.bus.reset()?;
         self.cpu.reset(&mut self.bus)?;
+        
+        // Note: Removed the 8-cycle delay as it was causing PC to be modified incorrectly
+        
         self.state = EmulatorState::default();
         self.running = false;
         Ok(())
@@ -46,6 +49,12 @@ impl Emulator {
         
         let cycles = self.bus.step_cpu(&mut self.cpu)?;
         self.state.cpu_cycles += cycles;
+        
+        // Update PPU state
+        if let Some(ref ppu) = self.bus.ppu {
+            self.state.ppu_scanline = ppu.scanline();
+            self.state.ppu_dot = ppu.dot();
+        }
         
         Ok(cycles)
     }
@@ -86,6 +95,51 @@ impl Emulator {
     /// Get emulator state
     pub fn get_state(&self) -> &EmulatorState {
         &self.state
+    }
+    
+    /// Get PPU frame buffer
+    pub fn get_ppu_frame_buffer(&self) -> Option<&[rnes_common::Pixel]> {
+        self.bus.get_ppu_frame_buffer()
+    }
+    
+    /// Check if PPU VBlank is active
+    pub fn ppu_vblank(&self) -> bool {
+        self.bus.ppu_vblank()
+    }
+    
+    /// Debug: Get PPU registers
+    pub fn debug_ppu_registers(&self) -> Option<rnes_ppu::PpuRegisters> {
+        self.bus.debug_ppu_registers()
+    }
+    
+    /// Debug: Get PPU state
+    pub fn debug_ppu_state(&self) -> Option<&rnes_ppu::PpuState> {
+        self.bus.debug_ppu_state()
+    }
+    
+    /// Debug: Check if PPU background is enabled
+    pub fn debug_ppu_background_enabled(&self) -> bool {
+        self.bus.debug_ppu_background_enabled()
+    }
+    
+    /// Get PPU instance
+    pub fn ppu(&self) -> &rnes_ppu::Ppu {
+        self.bus.ppu()
+    }
+    
+    /// Get mutable PPU instance
+    pub fn ppu_mut(&mut self) -> &mut rnes_ppu::Ppu {
+        self.bus.ppu_mut()
+    }
+    
+    /// Get CPU instance
+    pub fn cpu(&self) -> &rnes_cpu6502::Cpu {
+        &self.cpu
+    }
+    
+    /// Get mutable CPU instance
+    pub fn cpu_mut(&mut self) -> &mut rnes_cpu6502::Cpu {
+        &mut self.cpu
     }
     
     /// Set controller 1 state

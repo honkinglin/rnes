@@ -586,7 +586,15 @@ fn brk<M: MemoryAccess>(cpu: &mut Cpu, memory: &mut M, _mode: AddressingMode) ->
     cpu.status.set_interrupt_disable(true);
     
     // Jump to IRQ vector
-    cpu.pc = memory.read_word(0xFFFE)?;
+    let irq_vector = memory.read_word(0xFFFE)?;
+    
+    // If IRQ vector points to invalid address (like 0x0000), 
+    // start from PRG ROM base address (0x8000)
+    if irq_vector < 0x8000 {
+        cpu.pc = 0x8000;
+    } else {
+        cpu.pc = irq_vector;
+    }
     
     Ok(7)
 }

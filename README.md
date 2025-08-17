@@ -41,10 +41,10 @@ frontend/
 - [x] NMI/IRQ handling
 
 ### M1: PPU Background Rendering + NROM
-- [ ] PPU timing model
-- [ ] Background rendering
-- [ ] NROM Mapper
-- [ ] Palette system
+- [x] PPU timing model
+- [x] Background rendering
+- [x] NROM Mapper
+- [x] Palette system
 
 ### M2: Sprite Layer & Input
 - [ ] Sprite rendering
@@ -111,6 +111,14 @@ cargo run --release -- path/to/rom.nes
 - [ ] MMC3 (4)
 - [ ] AOROM (7)
 
+## Documentation
+
+- [CPU Implementation](docs/CPU_IMPLEMENTATION.md) - Detailed CPU implementation guide
+- [M1 Implementation](docs/M1_IMPLEMENTATION.md) - M1 milestone implementation details
+- [PPU Testing](docs/PPU_TESTING.md) - PPU testing framework and procedures
+- [Testing Guide](docs/TESTING_GUIDE.md) - Comprehensive testing procedures
+- [Progress](docs/PROGRESS.md) - Development progress tracking
+
 ## Development
 
 ### Requirements
@@ -124,9 +132,17 @@ cargo run --release -- path/to/rom.nes
 # Run all tests
 cargo test
 
+# Download all test ROMs (CPU, PPU, APU)
+./scripts/download_all_test_roms.sh
+
+# Or download specific test ROMs:
 # Run CPU integration tests (requires test ROMs)
-./scripts/download_test_roms.sh
+./scripts/download_cpu_test_roms.sh
 cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored
+
+# Run PPU integration tests (requires test ROMs)
+./scripts/download_ppu_test_roms.sh
+cargo test -p rnes-test-suite --test ppu_integration_tests -- --ignored
 
 # Run benchmarks
 cargo bench
@@ -138,10 +154,20 @@ cargo fmt
 
 #### Test ROMs
 
-This project uses test ROMs for comprehensive CPU testing. These ROMs are not included in the repository due to copyright considerations. To run integration tests:
+This project uses test ROMs for comprehensive CPU and PPU testing. These ROMs are not included in the repository due to copyright considerations. To run integration tests:
 
-1. Download test ROMs: `./scripts/download_test_roms.sh`
-2. Run tests: `cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored`
+**Option 1: Download all test ROMs at once**
+```bash
+./scripts/download_all_test_roms.sh
+```
+
+**Option 2: Download specific test ROMs**
+1. Download CPU test ROMs: `./scripts/download_cpu_test_roms.sh`
+2. Download PPU test ROMs: `./scripts/download_ppu_test_roms.sh`
+
+**Run tests**
+3. Run CPU tests: `cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored`
+4. Run PPU tests: `cargo test -p rnes-test-suite --test ppu_integration_tests -- --ignored`
 
 The test ROMs are automatically ignored by Git and will not be committed to the repository.
 
