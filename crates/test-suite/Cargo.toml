@@ -13,6 +13,7 @@ rnes-common = { path = "../common" }
 rnes-core = { path = "../core" }
 rnes-cartridge = { path = "../cartridge" }
 rnes-ppu = { path = "../ppu" }
+rnes-mappers = { path = "../mappers" }
 
 # Test dependencies
 serde = { workspace = true }
@@ -31,3 +32,7 @@ path = "src/ppu_integration_tests.rs"
 [[test]]
 name = "cpu_test_runner"
 path = "src/cpu_test_runner.rs"
+
+[[test]]
+name = "m2_integration_tests"
+path = "src/m2_integration_tests.rs"

@@ -34,27 +34,22 @@
 - ✅ CPU executes all 151 instructions correctly
 - ✅ Memory access trait system working
 - ✅ Test ROM loading and execution
+- ✅ M1: PPU background rendering working
+- ✅ M2: Sprite rendering and input handling working
 
 ### Known Issues
 - ⚠️ Integration tests show infinite loops (needs PPU/APU support)
-- ⚠️ Missing PPU, APU, Mapper implementations
-- ⚠️ Memory mapping needs completion
+- ⚠️ Missing APU implementation
+- ⚠️ Advanced Mapper implementations needed
 - ⚠️ Frontend implementation incomplete
 
 ## Next Steps
 
-### M1: PPU Implementation + NROM Mapper
-- [ ] PPU timing model and scanline rendering
-- [ ] Background tile rendering
-- [ ] NROM (Mapper 0) implementation
-- [ ] Palette system and color management
-- [ ] VBlank/NMI generation
-
-### M2: Sprite System + Input Handling
-- [ ] Sprite rendering and OAM management
-- [ ] Sprite 0 hit detection
-- [ ] Input handling (keyboard/gamepad)
-- [ ] DMA operations for sprite data
+### M2: Sprite System + Input Handling ✅
+- [x] Sprite rendering and OAM management
+- [x] Sprite zero hit detection
+- [x] Input handling (keyboard/gamepad)
+- [x] DMA operations for sprite data
 
 ### M3: APU Audio System
 - [ ] 5 audio channel implementations

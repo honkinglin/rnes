@@ -125,7 +125,9 @@ fn test_basic_program_execution() {
         0x4C, 0x00, 0x00, // JMP $0000
     ];
     
-    memory.load_program(0x0000, &program);
+    memory.load_program(0x8000, &program);
+    // Set reset vector to point to our program (use 0x8000 to avoid invalid address check)
+    memory.write_word(0xFFFC, 0x8000).unwrap();
     cpu.reset(&mut memory).unwrap();
     
     // Execute first few instructions
@@ -198,10 +200,10 @@ fn test_rom_loading_capability() -> Result<(), Box<dyn std::error::Error>> {
     ];
     
     // Set reset vector
-    memory.write_word(0xFFFC, 0x0000)?;
+    memory.write_word(0xFFFC, 0x8000)?;
     
     // Load program
-    memory.load_test_program(&program, 0x0000);
+    memory.load_test_program(&program, 0x8000);
     
     // Reset CPU
     cpu.reset(&mut memory)?;

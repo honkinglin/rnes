@@ -46,11 +46,11 @@ frontend/
 - [x] NROM Mapper
 - [x] Palette system
 
-### M2: Sprite Layer & Input
-- [ ] Sprite rendering
-- [ ] OAM DMA
-- [ ] Input handling
-- [ ] Sprite 0 hit
+### M2: Sprite Layer & Input ✅
+- [x] Sprite rendering
+- [x] OAM DMA
+- [x] Input handling
+- [x] Sprite 0 hit
 
 ### M3: APU Audio
 - [ ] Audio channel implementation
@@ -143,6 +143,10 @@ cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored
 # Run PPU integration tests (requires test ROMs)
 ./scripts/download_ppu_test_roms.sh
 cargo test -p rnes-test-suite --test ppu_integration_tests -- --ignored
+
+# Run M2 integration tests (requires test ROMs)
+./scripts/download_m2_test_roms.sh
+cargo test -p rnes-test-suite --test m2_integration_tests -- --ignored
 
 # Run benchmarks
 cargo bench

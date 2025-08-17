@@ -12,6 +12,10 @@ name = "m1_demo"
 path = "m1_demo.rs"
 
 [[bin]]
+name = "m2_demo"
+path = "m2_demo.rs"
+
+[[bin]]
 name = "simple_test"
 path = "simple_test.rs"
 

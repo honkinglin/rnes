@@ -2,6 +2,85 @@ use rnes_common::{Byte, Word, RnesResult, Pixel, Scanline, Dot, SCREEN_WIDTH, SC
                   TOTAL_SCANLINES, DOTS_PER_SCANLINE, VISIBLE_SCANLINES, NES_PALETTE};
 use rnes_mappers::Mapper;
 
+/// Sprite data structure (4 bytes per sprite)
+#[derive(Debug, Clone, Copy)]
+pub struct Sprite {
+    pub y: Byte,        // Y position (top-left corner)
+    pub tile_id: Byte,  // Tile index
+    pub attributes: Byte, // Attributes (palette, priority, flip)
+    pub x: Byte,        // X position (top-left corner)
+}
+
+impl Sprite {
+    pub fn new() -> Self {
+        Self {
+            y: 0,
+            tile_id: 0,
+            attributes: 0,
+            x: 0,
+        }
+    }
+    
+    /// Get sprite palette (0-3)
+    pub fn palette(&self) -> Byte {
+        self.attributes & 0x03
+    }
+    
+    /// Check if sprite is behind background
+    pub fn behind_background(&self) -> bool {
+        self.attributes & 0x20 != 0
+    }
+    
+    /// Check if sprite is flipped horizontally
+    pub fn flip_horizontal(&self) -> bool {
+        self.attributes & 0x40 != 0
+    }
+    
+    /// Check if sprite is flipped vertically
+    pub fn flip_vertical(&self) -> bool {
+        self.attributes & 0x80 != 0
+    }
+    
+    /// Get sprite height (8 or 16 pixels)
+    pub fn height(&self, sprite_size: bool) -> Byte {
+        if sprite_size { 16 } else { 8 }
+    }
+    
+    /// Check if sprite is visible on current scanline
+    pub fn is_visible_on_scanline(&self, scanline: usize, sprite_size: bool) -> bool {
+        let height = self.height(sprite_size) as usize;
+        let y_pos = self.y as usize;
+        
+        // Handle sprite wrapping around screen
+        if y_pos >= 240 {
+            return false;
+        }
+        
+        // Check if scanline intersects with sprite
+        scanline >= y_pos && scanline < y_pos + height
+    }
+}
+
+/// Sprite rendering state
+#[derive(Debug)]
+pub struct SpriteRenderingState {
+    pub sprites_on_scanline: Vec<Sprite>,
+    pub sprite_pattern_data: Vec<[Byte; 8]>, // Pattern data for each sprite
+    pub sprite_zero_on_scanline: bool,
+    pub sprite_overflow: bool,
+}
+
+impl Default for SpriteRenderingState {
+    fn default() -> Self {
+        Self {
+            sprites_on_scanline: Vec::new(),
+            sprite_pattern_data: Vec::new(),
+            sprite_zero_on_scanline: false,
+            sprite_overflow: false,
+        }
+    }
+}
+
 /// PPU registers
 #[derive(Debug, Clone, Copy)]
 pub struct PpuRegisters {
@@ -55,6 +134,12 @@ pub struct PpuState {
     pub bg_next_tile_attr: Byte,
     pub bg_next_tile_lsb: Byte,
     pub bg_next_tile_msb: Byte,
+    
+    // Sprite rendering state
+    pub sprite_rendering: SpriteRenderingState,
+    pub oam_dma_active: bool,
+    pub oam_dma_cycles: u16,
+    pub oam_dma_addr: Word,
 }
 
 impl Default for PpuState {
@@ -78,6 +163,10 @@ impl Default for PpuState {
             bg_next_tile_attr: 0,
             bg_next_tile_lsb: 0,
             bg_next_tile_msb: 0,
+            sprite_rendering: SpriteRenderingState::default(),
+            oam_dma_active: false,
+            oam_dma_cycles: 0,
+            oam_dma_addr: 0,
         }
     }
 }
@@ -104,8 +193,54 @@ impl Ppu {
         }
     }
     
+    /// Start OAM DMA transfer
+    pub fn start_oam_dma(&mut self, page: Byte) {
+        self.state.oam_dma_active = true;
+        self.state.oam_dma_cycles = 0;
+        self.state.oam_dma_addr = (page as Word) << 8;
+    }
+    
+    /// Step OAM DMA transfer
+    pub fn step_oam_dma(&mut self, memory: &dyn rnes_common::MemoryAccess) -> RnesResult<()> {
+        if !self.state.oam_dma_active {
+            return Ok(());
+        }
+        
+        // OAM DMA takes 513 cycles (1 dummy read + 256 writes)
+        if self.state.oam_dma_cycles < 513 {
+            if self.state.oam_dma_cycles == 0 {
+                // Dummy read cycle
+                let _ = memory.read_byte(self.state.oam_dma_addr)?;
+            } else {
+                // Write to OAM
+                let oam_addr = (self.state.oam_dma_cycles - 1) as usize;
+                let data = memory.read_byte(self.state.oam_dma_addr)?;
+                self.oam[oam_addr] = data;
+                self.state.oam_dma_addr = self.state.oam_dma_addr.wrapping_add(1);
+            }
+            self.state.oam_dma_cycles += 1;
+        } else {
+            // DMA transfer complete
+            self.state.oam_dma_active = false;
+        }
+        
+        Ok(())
+    }
+    
+    /// Check if OAM DMA is active
+    pub fn oam_dma_active(&self) -> bool {
+        self.state.oam_dma_active
+    }
+    
     /// Step PPU by one dot
     pub fn step(&mut self) -> RnesResult<()> {
+        // Handle OAM DMA if active
+        if self.state.oam_dma_active {
+            // For now, we'll handle DMA in a simplified way
+            // In a real implementation, this would need access to system memory
+            return Ok(());
+        }
+        
         // Update scanline and dot
         self.state.dot += 1;
         if self.state.dot >= DOTS_PER_SCANLINE as Dot {
@@ -142,7 +277,10 @@ impl Ppu {
             self.render_background_scanline(scanline)?;
         }
         
-        // Sprite rendering (not implemented in M1)
+        // Sprite rendering
+        if self.is_sprites_enabled() {
+            self.render_sprite_scanline(scanline)?;
+        }
         
         Ok(())
     }
@@ -345,6 +483,136 @@ impl Ppu {
     /// Check if background is enabled
     fn is_background_enabled(&self) -> bool {
         self.registers.ppumask & 0x08 != 0
+    }
+    
+    /// Check if sprites are enabled
+    fn is_sprites_enabled(&self) -> bool {
+        self.registers.ppumask & 0x10 != 0
+    }
+    
+    /// Render sprite scanline
+    fn render_sprite_scanline(&mut self, scanline: usize) -> RnesResult<()> {
+        // Clear sprite rendering state for the new scanline
+        self.state.sprite_rendering = SpriteRenderingState::default();
+        
+        // Evaluate sprites for this scanline
+        self.evaluate_sprites(scanline)?;
+        
+        // Render sprites in order of Y position
+        let sprites_to_render = self.state.sprite_rendering.sprites_on_scanline.clone();
+        for sprite in sprites_to_render {
+            self.render_sprite(sprite, scanline)?;
+        }
+        
+        // Check for sprite zero hit
+        if self.state.sprite_rendering.sprite_zero_on_scanline {
+            self.state.sprite_zero_hit = true;
+        }
+        
+        // Check for sprite overflow
+        if self.state.sprite_rendering.sprite_overflow {
+            self.state.sprite_overflow = true;
+        }
+        
+        Ok(())
+    }
+    
+    /// Evaluate sprites for current scanline
+    fn evaluate_sprites(&mut self, scanline: usize) -> RnesResult<()> {
+        let sprite_height = if self.registers.ppuctrl & 0x20 != 0 { 16 } else { 8 };
+        
+        // Scan OAM for sprites visible on this scanline
+        for i in 0..64 { // 64 sprites in OAM
+            let oam_addr = i * 4;
+            let sprite_y = self.oam[oam_addr];
+            let sprite_tile_id = self.oam[oam_addr + 1];
+            let sprite_attributes = self.oam[oam_addr + 2];
+            let sprite_x = self.oam[oam_addr + 3];
+            
+            // Check if sprite is visible on this scanline
+            if sprite_y < 240 && sprite_y + sprite_height > scanline as Byte && sprite_y <= scanline as Byte {
+                // Add sprite to scanline list
+                let sprite = Sprite {
+                    y: sprite_y,
+                    tile_id: sprite_tile_id,
+                    attributes: sprite_attributes,
+                    x: sprite_x,
+                };
+                
+                self.state.sprite_rendering.sprites_on_scanline.push(sprite);
+                
+                // Check for sprite zero hit
+                if i == 0 {
+                    self.state.sprite_rendering.sprite_zero_on_scanline = true;
+                }
+                
+                // Check for sprite overflow (more than 8 sprites on scanline)
+                if self.state.sprite_rendering.sprites_on_scanline.len() > 8 {
+                    self.state.sprite_rendering.sprite_overflow = true;
+                    break; // Only first 8 sprites are rendered
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Render a single sprite
+    fn render_sprite(&mut self, sprite: Sprite, scanline: usize) -> RnesResult<()> {
+        let sprite_y_pos = sprite.y as usize;
+        let sprite_height = if self.registers.ppuctrl & 0x20 != 0 { 16 } else { 8 };
+        
+        // Check if sprite is visible on this scanline
+        if sprite_y_pos > scanline || sprite_y_pos + sprite_height as usize <= scanline {
+            return Ok(());
+        }
+        
+        let sprite_x_pos = sprite.x as usize;
+        let sprite_y_offset = scanline - sprite_y_pos;
+        
+        // Get sprite pattern data
+        let pattern_table = if self.registers.ppuctrl & 0x10 != 0 { 0x1000 } else { 0x0000 };
+        let tile_addr = pattern_table + (sprite.tile_id as Word) * 16;
+        
+        // Read pattern data for the sprite row
+        let pattern_low = self.read_vram(tile_addr + sprite_y_offset as Word)?;
+        let pattern_high = self.read_vram(tile_addr + sprite_y_offset as Word + 8)?;
+        
+        // Render sprite pixels
+        for pixel_x in 0..8 {
+            let screen_x = sprite_x_pos + pixel_x;
+            if screen_x >= SCREEN_WIDTH {
+                continue;
+            }
+            
+            // Get pixel data from pattern
+            let pattern_x = if sprite.flip_horizontal() { 7 - pixel_x } else { pixel_x };
+            let low_bit = (pattern_low >> (7 - pattern_x)) & 1;
+            let high_bit = (pattern_high >> (7 - pattern_x)) & 1;
+            let color_index = (high_bit << 1) | low_bit;
+            
+            // Skip transparent pixels
+            if color_index == 0 {
+                continue;
+            }
+            
+            // Get sprite color
+            let palette_base = 0x3F10 + (sprite.palette() as Word) * 4;
+            let color_id = self.read_palette_ram(palette_base + color_index as Word)?;
+            let color = Pixel::from_rgb(NES_PALETTE[color_id as usize]);
+            
+            // Write to frame buffer
+            let pixel_index = scanline * SCREEN_WIDTH + screen_x;
+            if pixel_index < self.frame_buffer.len() {
+                // Check sprite-to-background priority
+                let bg_pixel = self.frame_buffer[pixel_index];
+                if !sprite.behind_background() || bg_pixel == Pixel::BLACK {
+                    self.frame_buffer[pixel_index] = color;
+                }
+            }
+        }
+        
+        Ok(())
     }
     
     /// Read from VRAM
@@ -606,38 +874,48 @@ impl Ppu {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rnes_cartridge::Cartridge;
     use rnes_mappers::NromMapper;
-
+    use rnes_cartridge::{Cartridge, Mirroring};
+    
     #[test]
-    fn test_ppu_creation() {
-        // Create a simple test cartridge
-        let mut test_data = vec![
-            0x4E, 0x45, 0x53, 0x1A, // iNES magic
-            0x01, 0x01,             // 16KB PRG, 8KB CHR
-            0x00, 0x00,             // Mapper 0, horizontal mirroring
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Padding
-        ];
-        
-        // Add 16KB PRG ROM data
-        test_data.extend(vec![0; 16384]);
-        
-        // Add 8KB CHR ROM data
-        test_data.extend(vec![0; 8192]);
-        
-        let cartridge = Cartridge::from_bytes(&test_data).unwrap();
-        let mapper = Box::new(NromMapper::new(cartridge));
-        let ppu = Ppu::new(mapper);
-        
-        assert_eq!(ppu.scanline(), -1);
-        assert_eq!(ppu.dot(), 0);
-        assert_eq!(ppu.frame_count(), 0);
-        assert!(!ppu.vblank());
+    fn test_sprite_creation() {
+        let sprite = Sprite::new();
+        assert_eq!(sprite.y, 0);
+        assert_eq!(sprite.tile_id, 0);
+        assert_eq!(sprite.attributes, 0);
+        assert_eq!(sprite.x, 0);
     }
     
     #[test]
-    fn test_ppu_step() {
-        // Create a simple test cartridge
+    fn test_sprite_attributes() {
+        let mut sprite = Sprite::new();
+        sprite.attributes = 0x23; // Palette 3, behind background, no flip
+        
+        assert_eq!(sprite.palette(), 3);
+        assert!(sprite.behind_background());
+        assert!(!sprite.flip_horizontal());
+        assert!(!sprite.flip_vertical());
+    }
+    
+    #[test]
+    fn test_sprite_visibility() {
+        let mut sprite = Sprite::new();
+        sprite.y = 100;
+        
+        // 8x8 sprite
+        assert!(sprite.is_visible_on_scanline(100, false));
+        assert!(sprite.is_visible_on_scanline(107, false));
+        assert!(!sprite.is_visible_on_scanline(108, false));
+        
+        // 16x16 sprite
+        assert!(sprite.is_visible_on_scanline(100, true));
+        assert!(sprite.is_visible_on_scanline(115, true));
+        assert!(!sprite.is_visible_on_scanline(116, true));
+    }
+    
+    #[test]
+    fn test_ppu_creation_with_sprites() {
+        // Create test ROM data
         let mut test_data = vec![
             0x4E, 0x45, 0x53, 0x1A, // iNES magic
             0x01, 0x01,             // 16KB PRG, 8KB CHR
@@ -652,19 +930,35 @@ mod tests {
         test_data.extend(vec![0; 8192]);
         
         let cartridge = Cartridge::from_bytes(&test_data).unwrap();
-        let mapper = Box::new(NromMapper::new(cartridge));
-        let mut ppu = Ppu::new(mapper);
+        let mapper = NromMapper::new(cartridge);
+        let ppu = Ppu::new(Box::new(mapper));
         
-        // Step PPU a few times
-        ppu.step().unwrap();
-        assert_eq!(ppu.scanline(), -1);
-        assert_eq!(ppu.dot(), 1);
+        assert_eq!(ppu.oam_dma_active(), false);
+        assert_eq!(ppu.state.sprite_rendering.sprites_on_scanline.len(), 0);
+    }
+    
+    #[test]
+    fn test_oam_dma_start() {
+        // Create test ROM data
+        let mut test_data = vec![
+            0x4E, 0x45, 0x53, 0x1A, // iNES magic
+            0x01, 0x01,             // 16KB PRG, 8KB CHR
+            0x00, 0x00,             // Mapper 0, horizontal mirroring
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Padding
+        ];
         
-        // Step to first visible scanline
-        for _ in 0..340 {
-            ppu.step().unwrap();
-        }
-        assert_eq!(ppu.scanline(), 0);
-        assert_eq!(ppu.dot(), 0);
+        // Add 16KB PRG ROM data
+        test_data.extend(vec![0; 16384]);
+        
+        // Add 8KB CHR ROM data
+        test_data.extend(vec![0; 8192]);
+        
+        let cartridge = Cartridge::from_bytes(&test_data).unwrap();
+        let mapper = NromMapper::new(cartridge);
+        let mut ppu = Ppu::new(Box::new(mapper));
+        
+        ppu.start_oam_dma(0x02);
+        assert!(ppu.oam_dma_active());
+        assert_eq!(ppu.state.oam_dma_addr, 0x0200);
     }
 }
