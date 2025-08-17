@@ -1,4 +1,4 @@
-use rnes_common::{RnesResult, EmulatorState, SaveSystem, SaveState};
+use rnes_common::{RnesResult, EmulatorState, SaveSystem, SaveState, Config, Debugger, DebugInfo, CpuRegisters, StatusFlagsDebug, PpuDebugState, PpuRegistersDebug, MemoryAccess};
 use crate::Bus;
 use rnes_cartridge::Cartridge;
 
@@ -11,11 +11,16 @@ pub struct Emulator {
     pub running: bool,
     pub save_system: SaveSystem,
     pub rom_name: Option<String>,
+    pub config: Config,
+    pub debugger: Debugger,
+    pub auto_save_timer: u32,
+    pub last_auto_save: std::time::Instant,
 }
 
 impl Emulator {
     /// Create new emulator instance
     pub fn new() -> Self {
+        let config = Config::load_or_create().unwrap_or_else(|_| Config::default());
         Self {
             bus: Bus::new(),
             cpu: rnes_cpu6502::Cpu::new(),
@@ -23,6 +28,26 @@ impl Emulator {
             running: false,
             save_system: SaveSystem::new(),
             rom_name: None,
+            config,
+            debugger: Debugger::new(),
+            auto_save_timer: 0,
+            last_auto_save: std::time::Instant::now(),
+        }
+    }
+    
+    /// Create emulator with custom configuration
+    pub fn with_config(config: Config) -> Self {
+        Self {
+            bus: Bus::new(),
+            cpu: rnes_cpu6502::Cpu::new(),
+            state: EmulatorState::default(),
+            running: false,
+            save_system: SaveSystem::new(),
+            rom_name: None,
+            config,
+            debugger: Debugger::new(),
+            auto_save_timer: 0,
+            last_auto_save: std::time::Instant::now(),
         }
     }
     
@@ -58,6 +83,12 @@ impl Emulator {
         
         self.state = EmulatorState::default();
         self.running = false;
+        self.auto_save_timer = 0;
+        self.last_auto_save = std::time::Instant::now();
+        
+        // Clear debugger state
+        self.debugger.clear_history();
+        
         Ok(())
     }
     
@@ -67,8 +98,19 @@ impl Emulator {
             return Ok(0);
         }
         
+        // Check for breakpoints
+        if self.debugger.should_break(self.cpu.pc) {
+            self.running = false;
+            self.debugger.break_next = false;
+            tracing::info!("Breakpoint hit at 0x{:04X}", self.cpu.pc);
+            return Ok(0);
+        }
+        
         let cycles = self.bus.step_cpu(&mut self.cpu)?;
         self.state.cpu_cycles += cycles;
+        
+        // Update debug info after execution
+        self.update_debug_info();
         
         // Update PPU state
         if let Some(ref ppu) = self.bus.ppu {
@@ -82,7 +124,78 @@ impl Emulator {
             self.bus.clear_dmc_irq();
         }
         
+        // Handle auto-save
+        self.handle_auto_save()?;
+        
         Ok(cycles)
+    }
+    
+    /// Update debug information
+    fn update_debug_info(&mut self) {
+        let mut debug_info = DebugInfo::default();
+        
+        // CPU registers
+        debug_info.cpu_registers = CpuRegisters {
+            a: self.cpu.a,
+            x: self.cpu.x,
+            y: self.cpu.y,
+            sp: self.cpu.sp,
+            pc: self.cpu.pc,
+            status: self.cpu.status.bits(),
+            status_flags: StatusFlagsDebug {
+                carry: self.cpu.status.contains(rnes_cpu6502::StatusFlags::CARRY),
+                zero: self.cpu.status.contains(rnes_cpu6502::StatusFlags::ZERO),
+                interrupt_disable: self.cpu.status.contains(rnes_cpu6502::StatusFlags::INTERRUPT_DISABLE),
+                decimal: self.cpu.status.contains(rnes_cpu6502::StatusFlags::DECIMAL),
+                r#break: self.cpu.status.contains(rnes_cpu6502::StatusFlags::BREAK),
+                overflow: self.cpu.status.contains(rnes_cpu6502::StatusFlags::OVERFLOW),
+                negative: self.cpu.status.contains(rnes_cpu6502::StatusFlags::NEGATIVE),
+            },
+        };
+        
+        // Current instruction info (simplified)
+        debug_info.current_pc = self.cpu.pc;
+        debug_info.current_cycles = 0; // This will be updated by the debugger
+        debug_info.total_cycles = self.state.cpu_cycles as u64;
+        
+        // PPU state
+        if let Some(ref ppu) = self.bus.ppu {
+            debug_info.ppu_state = PpuDebugState {
+                scanline: ppu.scanline(),
+                dot: ppu.dot(),
+                frame: ppu.frame_count(),
+                vblank: ppu.vblank(),
+                sprite_overflow: ppu.debug_state().sprite_overflow,
+                sprite_zero_hit: ppu.debug_state().sprite_zero_hit,
+                registers: PpuRegistersDebug {
+                    ppuctrl: ppu.debug_registers().ppuctrl,
+                    ppumask: ppu.debug_registers().ppumask,
+                    ppustatus: ppu.debug_registers().ppustatus,
+                    oamaddr: ppu.debug_registers().oamaddr,
+                    oamdata: ppu.debug_registers().oamdata,
+                    ppuscroll: ppu.debug_registers().ppuscroll,
+                    ppuaddr: ppu.debug_registers().ppuaddr,
+                    ppudata: ppu.debug_registers().ppudata,
+                },
+            };
+        }
+        
+        self.debugger.update_debug_info(debug_info);
+    }
+    
+    /// Handle auto-save functionality
+    fn handle_auto_save(&mut self) -> RnesResult<()> {
+        if !self.config.general.auto_save_battery || self.config.general.auto_save_interval == 0 {
+            return Ok(());
+        }
+        
+        let elapsed = self.last_auto_save.elapsed().as_secs() as u32;
+        if elapsed >= self.config.general.auto_save_interval {
+            self.save_battery_backup()?;
+            self.last_auto_save = std::time::Instant::now();
+        }
+        
+        Ok(())
     }
     
     /// Run specified number of CPU cycles
@@ -351,6 +464,90 @@ impl Emulator {
         } else {
             Ok(())
         }
+    }
+    
+    /// Quick save
+    pub fn quick_save(&self) -> RnesResult<()> {
+        let slot = self.config.save_states.quick_save_slot;
+        self.save_state(slot)
+    }
+    
+    /// Quick load
+    pub fn quick_load(&mut self) -> RnesResult<()> {
+        let slot = self.config.save_states.quick_load_slot;
+        self.load_state(slot)
+    }
+    
+    /// Get configuration
+    pub fn get_config(&self) -> &Config {
+        &self.config
+    }
+    
+    /// Get mutable configuration
+    pub fn get_config_mut(&mut self) -> &mut Config {
+        &mut self.config
+    }
+    
+    /// Save configuration
+    pub fn save_config(&self) -> RnesResult<()> {
+        let config_path = Config::get_config_path();
+        self.config.save_to_file(config_path)
+    }
+    
+    /// Get debugger
+    pub fn get_debugger(&self) -> &Debugger {
+        &self.debugger
+    }
+    
+    /// Get mutable debugger
+    pub fn get_debugger_mut(&mut self) -> &mut Debugger {
+        &mut self.debugger
+    }
+    
+    /// Add breakpoint
+    pub fn add_breakpoint(&mut self, address: rnes_common::Word) {
+        self.debugger.add_breakpoint(address);
+    }
+    
+    /// Remove breakpoint
+    pub fn remove_breakpoint(&mut self, address: rnes_common::Word) -> bool {
+        self.debugger.remove_breakpoint(address)
+    }
+    
+    /// Enable step mode
+    pub fn enable_step_mode(&mut self) {
+        self.debugger.enable_step_mode();
+    }
+    
+    /// Disable step mode
+    pub fn disable_step_mode(&mut self) {
+        self.debugger.disable_step_mode();
+    }
+    
+    /// Step to next instruction
+    pub fn step_instruction(&mut self) -> RnesResult<()> {
+        self.debugger.break_next_instruction();
+        self.start();
+        
+        // Run until next instruction
+        while self.is_running() {
+            self.step()?;
+        }
+        
+        Ok(())
+    }
+    
+    /// Get memory dump
+    pub fn get_memory_dump(&self, start: rnes_common::Word, length: usize) -> Vec<rnes_common::Byte> {
+        let mut data = Vec::new();
+        for addr in start..start + length as rnes_common::Word {
+            if let Ok(byte) = self.bus.read_byte(addr) {
+                data.push(byte);
+            } else {
+                data.push(0);
+            }
+        }
+        data
     }
 }
 
