@@ -1,115 +1,104 @@
-# RNES Web Frontend
+# RNES Web Frontend - React Pixel Game Style
 
-A modern web frontend for the RNES NES emulator built with Vite and WebAssembly.
+这是一个使用React和像素游戏风格UI的NES模拟器web前端。
 
-## Features
+## 特性
 
-- 🎮 Modern, responsive UI design
-- 📁 Drag & drop ROM loading
-- ⚡ Fast development with Vite
-- 🎨 Beautiful animations and transitions
-- 📱 Mobile-friendly interface
-- 🔧 Hot module replacement for development
+### 🎮 像素游戏风格界面
+- 使用Press Start 2P和VT323字体营造复古游戏氛围
+- 像素化的边框、阴影和动画效果
+- CRT扫描线效果和绿色发光效果
+- 复古色彩调色板（绿色、青色、紫色等）
 
-## Prerequisites
+### ⚡ React + Framer Motion
+- 现代化的React组件架构
+- 流畅的动画和过渡效果
+- 响应式设计，支持移动设备
 
-- Node.js 18+ 
-- Rust 1.89+
-- wasm-pack
+### 📁 文件拖放
+- 使用react-dropzone实现流畅的文件拖放体验
+- 支持.nes文件格式
+- 拖放状态的可视化反馈
 
-## Development
+### 🎯 交互式控制
+- 像素风格的按钮设计
+- 悬停和点击动画效果
+- 状态驱动的UI更新
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+## 技术栈
 
-2. **Build WASM module:**
-   ```bash
-   npm run build-wasm
-   ```
+- **React 18** - 现代化的UI框架
+- **Framer Motion** - 动画库
+- **React Dropzone** - 文件拖放功能
+- **Vite** - 快速构建工具
+- **CSS3** - 像素游戏风格样式
 
-3. **Start development server:**
-   ```bash
-   npm run dev
-   ```
+## 安装和运行
 
-4. **Or build WASM and start dev server in one command:**
-   ```bash
-   npm run dev-full
-   ```
-
-The development server will be available at `http://localhost:3000`.
-
-## Building for Production
-
-1. **Build WASM module:**
-   ```bash
-   npm run build-wasm
-   ```
-
-2. **Build the web application:**
-   ```bash
-   npm run build
-   ```
-
-3. **Preview the production build:**
-   ```bash
-   npm run preview
-   ```
-
-## Project Structure
-
-```
-frontend/web/
-├── src/
-│   ├── main.js          # Main application logic
-│   └── style.css        # Styles and animations
-├── pkg/                 # WASM build output (generated)
-├── public/              # Static assets
-├── index.html           # Main HTML file
-├── vite.config.js       # Vite configuration
-└── package.json         # Dependencies and scripts
+### 安装依赖
+```bash
+npm install
 ```
 
-## Controls
+### 开发模式
+```bash
+npm run dev
+```
+访问 http://localhost:3000
 
-- **Arrow Keys:** D-pad
-- **Enter:** Start
-- **Right Shift:** Select
-- **Z:** A Button
-- **X:** B Button
-- **A/S:** Turbo A/B
-- **R:** Reset
+### 构建生产版本
+```bash
+npm run build
+```
 
-## Browser Support
+### 预览生产版本
+```bash
+npm run preview
+```
 
-This application requires a modern browser with WebAssembly support:
-- Chrome 57+
-- Firefox 52+
-- Safari 11+
-- Edge 16+
+## 项目结构
 
-## Troubleshooting
+```
+src/
+├── App.jsx          # 主应用组件
+├── App.css          # 像素游戏风格样式
+├── main.jsx         # React入口文件
+└── style.css        # 基础样式（已弃用）
 
-### WASM Loading Issues
-If you encounter WASM loading issues, make sure:
-1. The WASM module is built (`npm run build-wasm`)
-2. You're using a supported browser
-3. The development server is running with proper CORS headers
+index.html           # HTML模板
+vite.config.js       # Vite配置
+package.json         # 项目依赖
+```
 
-### Performance Issues
-- Use the latest version of your browser
-- Ensure hardware acceleration is enabled
-- Close other resource-intensive applications
+## 设计特色
 
-## Contributing
+### 像素艺术风格
+- 使用CSS变量定义像素大小和间距
+- 像素化的边框和阴影效果
+- 复古游戏色彩调色板
 
-1. Make your changes in the `src/` directory
-2. Test with `npm run dev`
-3. Build for production with `npm run build`
-4. Submit a pull request
+### 动画效果
+- 页面加载动画
+- 按钮悬停和点击动画
+- 状态变化过渡效果
 
-## License
+### 响应式设计
+- 支持桌面、平板和移动设备
+- 自适应布局和字体大小
+- 触摸友好的交互设计
 
-This project is licensed under the MIT License.
+## 未来计划
+
+- [ ] 集成WASM模拟器核心
+- [ ] 添加游戏手柄支持
+- [ ] 实现存档/读档功能
+- [ ] 添加更多像素游戏风格的主题
+- [ ] 支持更多ROM格式
+
+## 贡献
+
+欢迎提交Issue和Pull Request来改进这个项目！
+
+## 许可证
+
+MIT License

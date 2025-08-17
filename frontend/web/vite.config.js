@@ -1,34 +1,15 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
+// https://vitejs.dev/config/
 export default defineConfig({
+  plugins: [react()],
   server: {
     port: 3000,
-    host: true,
-    headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Cross-Origin-Opener-Policy': 'same-origin',
-    },
+    open: true
   },
   build: {
-    target: 'esnext',
     outDir: 'dist',
-    assetsDir: 'assets',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          wasm: ['../pkg/rnes_web.js'],
-        },
-      },
-    },
-  },
-  optimizeDeps: {
-    exclude: ['../pkg/rnes_web.js'],
-  },
-  assetsInclude: ['**/*.wasm'],
-  publicDir: 'public',
-  resolve: {
-    alias: {
-      '@': '/src',
-    },
-  },
-});
+    sourcemap: true
+  }
+})
