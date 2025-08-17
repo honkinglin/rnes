@@ -7,3 +7,7 @@ pub mod ppu_test_runner;
 
 pub use cpu_test_runner::CpuTestRunner;
 pub use ppu_test_runner::{PpuTestRunner, PpuTestResult};
+
+// Include test modules
+#[cfg(test)]
+mod m2_integration_tests;

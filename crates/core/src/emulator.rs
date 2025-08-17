@@ -151,6 +151,44 @@ impl Emulator {
     pub fn set_controller2(&mut self, state: rnes_common::ControllerState) {
         self.bus.set_controller2(state);
     }
+    
+    /// Handle keyboard input
+    pub fn handle_keyboard_input(&mut self, key: rnes_common::Button, pressed: bool) {
+        let mut controller1 = self.bus.controller1.clone();
+        
+        match key {
+            rnes_common::Button::A => controller1.a = pressed,
+            rnes_common::Button::B => controller1.b = pressed,
+            rnes_common::Button::Select => controller1.select = pressed,
+            rnes_common::Button::Start => controller1.start = pressed,
+            rnes_common::Button::Up => controller1.up = pressed,
+            rnes_common::Button::Down => controller1.down = pressed,
+            rnes_common::Button::Left => controller1.left = pressed,
+            rnes_common::Button::Right => controller1.right = pressed,
+        }
+        
+        self.bus.set_controller1(controller1);
+    }
+    
+    /// Get current controller 1 state
+    pub fn get_controller1_state(&self) -> &rnes_common::ControllerState {
+        &self.bus.controller1
+    }
+    
+    /// Get current controller 2 state
+    pub fn get_controller2_state(&self) -> &rnes_common::ControllerState {
+        &self.bus.controller2
+    }
+    
+    /// Get mutable bus instance
+    pub fn bus_mut(&mut self) -> &mut crate::Bus {
+        &mut self.bus
+    }
+    
+    /// Get bus instance
+    pub fn bus(&self) -> &crate::Bus {
+        &self.bus
+    }
 }
 
 impl Default for Emulator {

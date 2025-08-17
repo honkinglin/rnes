@@ -146,6 +146,13 @@ impl Bus {
             // APU and I/O registers (0x4000-0x401F)
             0x4000..=0x401F => {
                 match addr {
+                    0x4014 => {
+                        // OAM DMA
+                        if let Some(ref mut ppu) = self.ppu {
+                            ppu.start_oam_dma(value);
+                        }
+                        Ok(())
+                    }
                     0x4016 => {
                         // Controller status register
                         tracing::debug!("Controller status write: 0x{:02X}", value);

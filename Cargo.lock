@@ -1755,6 +1755,7 @@ dependencies = [
  "rnes-common",
  "rnes-core",
  "rnes-cpu6502",
+ "rnes-mappers",
  "rnes-ppu",
  "serde",
  "tracing",
