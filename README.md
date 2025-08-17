@@ -65,10 +65,10 @@ frontend/
 - [x] MMC3 implementation
 - [x] Scanline IRQ
 
-### M6: Tools & Experience
-- [ ] Save states
-- [ ] Debugger
-- [ ] Configuration system
+### M6: Tools & Experience ✅
+- [x] Save states
+- [x] Debugger
+- [x] Configuration system
 
 ### M7: Accuracy & Polish
 - [ ] PPU timing optimization
@@ -140,10 +140,6 @@ cargo test
 ./scripts/download_cpu_test_roms.sh
 cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored
 
-# Run M5 integration tests (requires test ROMs)
-./scripts/download_m5_test_roms.sh
-cargo test -p rnes-test-suite --test m5_integration_tests -- --ignored
-
 # Run PPU integration tests (requires test ROMs)
 ./scripts/download_ppu_test_roms.sh
 cargo test -p rnes-test-suite --test ppu_integration_tests -- --ignored
@@ -158,6 +154,14 @@ cargo test -p rnes-test-suite --test m4_integration_tests -- --ignored
 
 # Run M4 basic tests (no ROMs required)
 cargo test -p rnes-test-suite --test m4_integration_tests
+
+# Run M5 integration tests (requires test ROMs)
+./scripts/download_m5_test_roms.sh
+cargo test -p rnes-test-suite --test m5_integration_tests -- --ignored
+
+# Run M6 integration tests (requires test ROMs)
+./scripts/download_m6_test_roms.sh
+cargo test -p rnes-test-suite --test m6_integration_tests -- --ignored
 
 # Run APU integration tests (requires test ROMs)
 ./scripts/download_apu_test_roms.sh

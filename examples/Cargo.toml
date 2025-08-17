@@ -79,6 +79,18 @@ path = "m5_rom_test.rs"
 name = "save_system_demo"
 path = "save_system_demo.rs"
 
+[[bin]]
+name = "m6_demo"
+path = "m6_demo.rs"
+
+[[bin]]
+name = "rom_debug"
+path = "rom_debug.rs"
+
+[[bin]]
+name = "cpu_step_debug"
+path = "cpu_step_debug.rs"
+
 [dependencies]
 rnes-core = { path = "../crates/core" }
 rnes-cartridge = { path = "../crates/cartridge" }
