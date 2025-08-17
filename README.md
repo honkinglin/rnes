@@ -61,9 +61,9 @@ frontend/
 - [x] MMC1, UxROM, CNROM, AOROM
 - [x] Save system
 
-### M5: MMC3 + IRQ
-- [ ] MMC3 implementation
-- [ ] Scanline IRQ
+### M5: MMC3 + IRQ ✅
+- [x] MMC3 implementation
+- [x] Scanline IRQ
 
 ### M6: Tools & Experience
 - [ ] Save states
@@ -139,6 +139,10 @@ cargo test
 # Run CPU integration tests (requires test ROMs)
 ./scripts/download_cpu_test_roms.sh
 cargo test -p rnes-test-suite --test cpu_integration_tests -- --ignored
+
+# Run M5 integration tests (requires test ROMs)
+./scripts/download_m5_test_roms.sh
+cargo test -p rnes-test-suite --test m5_integration_tests -- --ignored
 
 # Run PPU integration tests (requires test ROMs)
 ./scripts/download_ppu_test_roms.sh

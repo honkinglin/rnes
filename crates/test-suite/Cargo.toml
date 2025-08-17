@@ -48,3 +48,7 @@ path = "src/m2_integration_tests.rs"
 [[test]]
 name = "m4_integration_tests"
 path = "src/m4_integration_tests.rs"
+
+[[test]]
+name = "m5_integration_tests"
+path = "src/m5_integration_tests.rs"
